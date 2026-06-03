@@ -1,40 +1,52 @@
 import Link from "next/link";
+import { DashboardShell } from "./components/dashboard-shell";
 import { getDashboardData } from "../lib/services";
+import { getLocale, getMessages } from "../lib/i18n";
 
 export default async function HomePage() {
+  const locale = await getLocale();
+  const messages = await getMessages(locale);
   const data = await getDashboardData();
 
   return (
-    <main className="grid">
-      <section className="hero">
-        <span className="pill">Web-first, desktop-portable</span>
-        <h1>Bank reconciliation extraction for shared business workspaces.</h1>
-        <p>
-          Upload statements, apply preset rules, review low-confidence rows, and export Excel files after human approval.
-        </p>
-      </section>
-
-      <section className="grid cols-2">
-        {data.businesses.map(({ business, role, presets, jobs }) => (
-          <article key={business.id} className="panel stack">
-            <div className="row" style={{ justifyContent: "space-between" }}>
-              <div className="stack" style={{ gap: 4 }}>
-                <h2>{business.name}</h2>
-                <div className="muted">{business.slug}</div>
-              </div>
-              <span className="pill">{role}</span>
+    <DashboardShell
+      locale={locale}
+      messages={messages}
+      currentPath="/"
+      section={messages.nav.businesses}
+      title={messages.home.title}
+      subtitle={messages.home.subtitle}
+      navItems={[{ label: messages.nav.businesses, href: "/", active: true }]}
+    >
+      <section className="card-grid">
+        {data.businesses.map(({ business, role, templates, jobs }) => (
+          <article key={business.id} className="dashboard-card">
+            <div className="card-topline">
+              <span className="status-badge">{role}</span>
+              <span className="soft-label">
+                {templates.length} {messages.home.templateCount}
+              </span>
             </div>
-            <p className="muted">
-              {presets.length} preset version{presets.length === 1 ? "" : "s"} and {jobs.length} processing job
-              {jobs.length === 1 ? "" : "s"}.
-            </p>
+            <div className="stack tight">
+              <h2>{business.name}</h2>
+              <p className="card-slug">{business.slug}</p>
+            </div>
+            <div className="card-metrics">
+              <div>
+                <strong>{templates.length}</strong>
+                <span>{messages.home.templateCount}</span>
+              </div>
+              <div>
+                <strong>{jobs.length}</strong>
+                <span>{messages.home.jobCount}</span>
+              </div>
+            </div>
             <Link className="button" href={`/businesses/${business.id}`}>
-              Open workspace
+              {messages.home.openWorkspace}
             </Link>
           </article>
         ))}
       </section>
-    </main>
+    </DashboardShell>
   );
 }
-

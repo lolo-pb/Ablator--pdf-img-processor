@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { createJobAction, createPresetAction } from "../../actions";
+import { DashboardShell } from "../../components/dashboard-shell";
 import { getBusinessWorkspace } from "../../../lib/services";
+import { getLocale, getMessages } from "../../../lib/i18n";
 
 export default async function BusinessPage({
   params,
@@ -8,157 +9,67 @@ export default async function BusinessPage({
   params: Promise<{ businessId: string }>;
 }) {
   const { businessId } = await params;
+  const locale = await getLocale();
+  const messages = await getMessages(locale);
   const workspace = await getBusinessWorkspace(businessId);
 
   return (
-    <main className="grid">
-      <section className="hero">
-        <div className="row" style={{ justifyContent: "space-between" }}>
-          <div className="stack" style={{ gap: 6 }}>
-            <span className="pill">{workspace.role}</span>
-            <h1>{workspace.business.name}</h1>
-            <p>
-              Shared preset management, temporary source document storage, and mandatory human review before any export.
-            </p>
-          </div>
-          <Link className="button secondary" href="/">
-            Back
+    <DashboardShell
+      locale={locale}
+      messages={messages}
+      currentPath={`/businesses/${businessId}`}
+      section={workspace.business.name}
+      title={messages.business.title}
+      subtitle={messages.business.subtitle}
+      navItems={[
+        { label: messages.nav.businesses, href: "/", active: false },
+        { label: messages.nav.templates, href: `/businesses/${businessId}`, active: true },
+        { label: messages.nav.createTemplate, href: `/businesses/${businessId}/templates/new`, active: false },
+      ]}
+    >
+      <section className="toolbar toolbar-end">
+        <Link className="button" href={`/businesses/${businessId}/templates/new`}>
+          {messages.nav.createTemplate}
+        </Link>
+      </section>
+
+      {workspace.templates.length === 0 ? (
+        <section className="empty-state">
+          <h2>{messages.business.emptyTitle}</h2>
+          <p>{messages.business.emptyBody}</p>
+          <Link className="button" href={`/businesses/${businessId}/templates/new`}>
+            {messages.nav.createTemplate}
           </Link>
-        </div>
-      </section>
-
-      <section className="grid cols-2">
-        <div className="panel stack">
-          <h2>Create preset version</h2>
-          <form action={createPresetAction} className="stack">
-            <input type="hidden" name="businessId" value={workspace.business.id} />
-            <label>
-              Preset name
-              <input name="name" defaultValue="New Bank Reconciliation Preset" required />
-            </label>
-            <label>
-              Document family
-              <select name="documentFamily" defaultValue="bank_summary">
-                <option value="bank_summary">Bank summary</option>
-                <option value="reconciliation">Reconciliation</option>
-                <option value="statement">Statement</option>
-              </select>
-            </label>
-            <label>
-              Instructions
-              <textarea
-                name="instructionText"
-                rows={5}
-                defaultValue="Extract bank transactions, normalize dates and amounts, and classify spendings using the preset categories."
-              />
-            </label>
-            <label>
-              Categories
-              <textarea name="categories" rows={3} defaultValue="Operations, Payroll, Taxes, Subscriptions, Income, Uncategorized" />
-            </label>
-            <label>
-              Ignore rules
-              <textarea name="ignoreRules" rows={3} defaultValue="Ignore headers, balances, page footers, and summary sections that are not transaction rows." />
-            </label>
-            <label>
-              Example notes
-              <textarea name="exampleNotes" rows={3} defaultValue="Use for monthly account summaries with debit and credit transactions." />
-            </label>
-            <button type="submit">Save new preset version</button>
-          </form>
-        </div>
-
-        <div className="panel stack">
-          <h2>Create processing job</h2>
-          <form action={createJobAction} className="stack">
-            <input type="hidden" name="businessId" value={workspace.business.id} />
-            <label>
-              Preset
-              <select name="presetId" defaultValue={workspace.presets[0]?.id}>
-                {workspace.presets.map((preset) => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.name} v{preset.version}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Documents
-              <input name="documents" type="file" accept=".pdf,image/*" multiple required />
-            </label>
-            <button type="submit">Upload documents</button>
-          </form>
-          <p className="muted">
-            Uploaded source files are kept only until review is completed and the export is generated.
-          </p>
-        </div>
-      </section>
-
-      <section className="panel stack">
-        <div className="row" style={{ justifyContent: "space-between" }}>
-          <h2>Preset versions</h2>
-          <span className="status">{workspace.presets.length} total</span>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Family</th>
-              <th>Version</th>
-              <th>Categories</th>
-            </tr>
-          </thead>
-          <tbody>
-            {workspace.presets.map((preset) => (
-              <tr key={preset.id}>
-                <td>{preset.name}</td>
-                <td>{preset.documentFamily}</td>
-                <td>v{preset.version}</td>
-                <td>{preset.definition.classificationCategories.join(", ")}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      <section className="panel stack">
-        <div className="row" style={{ justifyContent: "space-between" }}>
-          <h2>Jobs</h2>
-          <span className="status">{workspace.jobs.length} total</span>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Created</th>
-              <th>Status</th>
-              <th>Preset</th>
-              <th>Review</th>
-            </tr>
-          </thead>
-          <tbody>
-            {workspace.jobs.map((job) => (
-              <tr key={job.id}>
-                <td>{new Date(job.createdAt).toLocaleString()}</td>
-                <td>{job.status}</td>
-                <td>{job.presetId}</td>
-                <td>
-                  <Link className="button secondary" href={`/businesses/${workspace.business.id}/jobs/${job.id}`}>
-                    Open job
-                  </Link>
-                </td>
-              </tr>
-            ))}
-            {workspace.jobs.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="muted">
-                  No jobs yet. Upload a statement or reconciliation file to start.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </section>
-    </main>
+        </section>
+      ) : (
+        <section className="card-grid">
+          {workspace.templates.map((template) => (
+            <article key={template.id} className="dashboard-card template-card">
+              <div className="card-topline">
+                <span className="status-badge">{messages.business.family}</span>
+                <span className="soft-label">
+                  {messages.business.latestVersion} v{template.version}
+                </span>
+              </div>
+              <div className="stack tight">
+                <h2>{template.name}</h2>
+                <p>{template.documentFamily}</p>
+              </div>
+              <div className="template-meta">
+                <strong>{messages.business.categories}</strong>
+                <span>{template.definition.classificationCategories.join(", ")}</span>
+              </div>
+              <div className="template-meta">
+                <strong>{messages.business.updatedAt}</strong>
+                <span>{new Date(template.updatedAt).toLocaleDateString(locale)}</span>
+              </div>
+              <Link className="button" href={`/businesses/${businessId}/templates/${template.id}`}>
+                {messages.business.openTemplate}
+              </Link>
+            </article>
+          ))}
+        </section>
+      )}
+    </DashboardShell>
   );
 }
-

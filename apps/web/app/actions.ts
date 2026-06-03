@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createJobFromUpload, processJob, savePresetVersion } from "../lib/services";
+import {
+  createOrUpdateDraftJob,
+  getReviewRoute,
+  getTemplateRoute,
+  processJob,
+  savePresetVersion,
+} from "../lib/services";
 
 function splitLines(value: FormDataEntryValue | null): string[] {
   return String(value ?? "")
@@ -13,7 +19,7 @@ function splitLines(value: FormDataEntryValue | null): string[] {
 
 export async function createPresetAction(formData: FormData) {
   const businessId = String(formData.get("businessId"));
-  await savePresetVersion({
+  const preset = await savePresetVersion({
     businessId,
     name: String(formData.get("name")),
     documentFamily: String(formData.get("documentFamily")) as "bank_summary" | "reconciliation" | "statement",
@@ -24,28 +30,24 @@ export async function createPresetAction(formData: FormData) {
   });
 
   revalidatePath(`/businesses/${businessId}`);
+  redirect(getTemplateRoute(businessId, preset.id));
 }
 
-export async function createJobAction(formData: FormData) {
+export async function processTemplateAction(formData: FormData) {
   const businessId = String(formData.get("businessId"));
   const presetId = String(formData.get("presetId"));
+  const jobIdValue = formData.get("jobId");
   const fileEntries = formData.getAll("documents");
   const files = fileEntries.filter((entry): entry is File => entry instanceof File && entry.size > 0);
 
-  const job = await createJobFromUpload({
+  const job = await createOrUpdateDraftJob({
     businessId,
     presetId,
+    jobId: typeof jobIdValue === "string" && jobIdValue.length > 0 ? jobIdValue : null,
     files,
   });
 
-  revalidatePath(`/businesses/${businessId}`);
-  redirect(`/businesses/${businessId}/jobs/${job.id}`);
+  await processJob(businessId, job.id);
+  revalidatePath(getTemplateRoute(businessId, presetId, job.id));
+  redirect(getReviewRoute(businessId, job.id));
 }
-
-export async function processJobAction(formData: FormData) {
-  const businessId = String(formData.get("businessId"));
-  const jobId = String(formData.get("jobId"));
-  await processJob(businessId, jobId);
-  revalidatePath(`/businesses/${businessId}/jobs/${jobId}`);
-}
-
