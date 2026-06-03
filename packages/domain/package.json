@@ -1,0 +1,13 @@
+{
+  "name": "@bank/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "drizzle-orm": "^0.44.5",
+    "zod": "^4.1.8"
+  }
+}
+

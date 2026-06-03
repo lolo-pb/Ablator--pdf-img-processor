@@ -1,0 +1,18 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/domain"
+    },
+    {
+      "path": "./packages/extraction"
+    },
+    {
+      "path": "./packages/export"
+    },
+    {
+      "path": "./apps/web"
+    }
+  ]
+}
+
