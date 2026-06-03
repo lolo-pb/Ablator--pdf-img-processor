@@ -10,12 +10,12 @@
   },
   "dependencies": {
     "@bank/domain": "0.1.0",
-    "@bank/extraction": "0.1.0",
     "@bank/export": "0.1.0",
+    "@bank/extraction": "0.1.0",
+    "@supabase/supabase-js": "^2.107.0",
     "next": "^15.5.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "uuid": "^11.1.0"
   }
 }
-

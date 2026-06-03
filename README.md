@@ -12,8 +12,14 @@ Web-first, desktop-portable document extraction platform for bank summaries, rec
 ## Local development
 
 1. Install dependencies: `npm install`
-2. Start the app: `npm run dev`
-3. Open `http://localhost:3000`
+2. Copy `.env.example` to `.env.local`
+3. Add your keys as you get them:
+   - `OPENAI_API_KEY`
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Start the app: `npm run dev`
+5. Open `http://localhost:3000`
 
 If `OPENAI_API_KEY` is not set, extraction falls back to a deterministic mock provider so the review/export flow still works.
 
+If Supabase keys are not set yet, the current prototype still runs on the local dev persistence layer.
