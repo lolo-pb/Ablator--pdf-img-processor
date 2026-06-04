@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
-  createOrUpdateDraftJob,
+  createOrReplaceActiveBatch,
   getReviewRoute,
   getTemplateRoute,
   processJob,
@@ -40,7 +40,7 @@ export async function processTemplateAction(formData: FormData) {
   const fileEntries = formData.getAll("documents");
   const files = fileEntries.filter((entry): entry is File => entry instanceof File && entry.size > 0);
 
-  const job = await createOrUpdateDraftJob({
+  const job = await createOrReplaceActiveBatch({
     businessId,
     presetId,
     jobId: typeof jobIdValue === "string" && jobIdValue.length > 0 ? jobIdValue : null,

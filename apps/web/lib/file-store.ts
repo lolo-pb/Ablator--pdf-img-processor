@@ -6,13 +6,9 @@ import { supabaseFileStore } from "./supabase-storage";
 
 const root = path.join(process.cwd(), ".local");
 const uploadsDir = path.join(root, "uploads");
-const exportsDir = path.join(root, "exports");
 
 async function ensureDirs() {
-  await Promise.all([
-    mkdir(uploadsDir, { recursive: true }),
-    mkdir(exportsDir, { recursive: true }),
-  ]);
+  await mkdir(uploadsDir, { recursive: true });
 }
 
 export const localFileStore: FileStore = {
@@ -24,15 +20,6 @@ export const localFileStore: FileStore = {
   },
   async readSourceDocument(storagePath) {
     return readFile(storagePath);
-  },
-  async writeExport(jobId, filename, buffer) {
-    await ensureDirs();
-    const downloadPath = path.join(exportsDir, `${jobId}-${filename}`);
-    await writeFile(downloadPath, buffer);
-    return { downloadPath };
-  },
-  async readExport(downloadPath) {
-    return readFile(downloadPath);
   },
   async deleteFile(filePath) {
     await rm(filePath, { force: true });
@@ -47,14 +34,6 @@ export const fileStore: FileStore = {
   async readSourceDocument(storagePath) {
     if (shouldUseSupabase()) return supabaseFileStore.readSourceDocument(storagePath);
     return localFileStore.readSourceDocument(storagePath);
-  },
-  async writeExport(jobId, filename, buffer) {
-    if (shouldUseSupabase()) return supabaseFileStore.writeExport(jobId, filename, buffer);
-    return localFileStore.writeExport(jobId, filename, buffer);
-  },
-  async readExport(downloadPath) {
-    if (shouldUseSupabase()) return supabaseFileStore.readExport(downloadPath);
-    return localFileStore.readExport(downloadPath);
   },
   async deleteFile(filePath) {
     if (shouldUseSupabase()) return supabaseFileStore.deleteFile(filePath);

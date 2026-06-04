@@ -17,12 +17,10 @@ import {
   activeJobStore as jobStore,
   activePresetStore as presetStore,
   activeTenantStore as tenantStore,
-  createAuditEvent,
   getBusinessById,
 } from "./repositories";
 
 const extractionProvider = createExtractionProvider();
-const editableStatuses: ProcessingJob["status"][] = ["uploaded", "review_required"];
 
 function getLatestActiveTemplates(presets: Preset[]) {
   const latestByName = new Map<string, Preset>();
@@ -72,20 +70,24 @@ export async function getBusinessWorkspace(businessId: string) {
   };
 }
 
-async function getEditableDraftJobForTemplate(args: {
-  businessId: string;
-  presetId: string;
-  userId: string;
-}) {
-  const jobs = await jobStore.listByBusiness(args.businessId);
-  return (
-    jobs.find(
-      (job) =>
-        job.presetId === args.presetId &&
-        job.createdBy === args.userId &&
-        editableStatuses.includes(job.status),
-    ) ?? null
+async function getActiveBatchForCurrentUser() {
+  const user = await authProvider.getCurrentUser();
+  const job = await jobStore.getActiveJobForUser(user.id);
+  return { user, job };
+}
+
+async function clearStoredFiles(documents: Array<{ storagePath: string; status: string }>) {
+  await Promise.all(
+    documents
+      .filter((document) => document.status === "stored")
+      .map((document) => fileStore.deleteFile(document.storagePath)),
   );
+}
+
+async function clearBatch(job: ProcessingJob) {
+  const documents = await jobStore.listDocuments(job.id);
+  await clearStoredFiles(documents);
+  await jobStore.clearJobData(job.id);
 }
 
 export async function getTemplateDetailData(args: {
@@ -99,17 +101,15 @@ export async function getTemplateDetailData(args: {
     throw new Error("Template not found.");
   }
 
-  let job =
-    args.jobId && args.jobId.length > 0
-      ? await jobStore.getJob(args.businessId, args.jobId)
-      : await getEditableDraftJobForTemplate({
-          businessId: args.businessId,
-          presetId: args.templateId,
-          userId: workspace.user.id,
-        });
+  const activeJob = await jobStore.getActiveJobForUser(workspace.user.id);
+  const requestedJob =
+    args.jobId && args.jobId.length > 0 ? await jobStore.getJob(args.businessId, args.jobId) : null;
 
-  if (job && job.presetId !== preset.id) {
-    job = null;
+  let job: ProcessingJob | null = null;
+  if (requestedJob && activeJob && requestedJob.id === activeJob.id && requestedJob.presetId === preset.id) {
+    job = requestedJob;
+  } else if (activeJob && activeJob.businessId === args.businessId && activeJob.presetId === preset.id) {
+    job = activeJob;
   }
 
   const documents = job ? await jobStore.listDocuments(job.id) : [];
@@ -126,10 +126,11 @@ export async function getTemplateDetailData(args: {
 
 export async function getJobReviewData(businessId: string, jobId: string) {
   const workspace = await getBusinessWorkspace(businessId);
-  const job = await jobStore.getJob(businessId, jobId);
-  if (!job) {
-    throw new Error("Job not found.");
+  const activeJob = await jobStore.getActiveJobForUser(workspace.user.id);
+  if (!activeJob || activeJob.id !== jobId || activeJob.businessId !== businessId) {
+    throw new Error("This batch is no longer active. Return to the template and process again.");
   }
+  const job = activeJob;
   const rows = await jobStore.listRows(jobId);
   const documents = await jobStore.listDocuments(jobId);
   const preset = await presetStore.getById(businessId, job.presetId);
@@ -166,7 +167,7 @@ async function buildSourceDocuments(jobId: string, files: File[]) {
   return documents;
 }
 
-export async function createOrUpdateDraftJob(input: {
+export async function createOrReplaceActiveBatch(input: {
   businessId: string;
   presetId: string;
   jobId?: string | null;
@@ -184,57 +185,56 @@ export async function createOrUpdateDraftJob(input: {
     throw new Error("Preset not found.");
   }
 
-  let job =
-    input.jobId && input.jobId.length > 0 ? await jobStore.getJob(input.businessId, input.jobId) : null;
-
-  if (!job || job.presetId !== input.presetId || !editableStatuses.includes(job.status)) {
-    job = await getEditableDraftJobForTemplate({
-      businessId: input.businessId,
-      presetId: input.presetId,
-      userId: user.id,
-    });
-  }
-
-  if (!job) {
-    job = await jobStore.createJob({
-      businessId: input.businessId,
-      presetId: input.presetId,
-      createdBy: user.id,
-    });
-  }
-
-  const existingDocuments = await jobStore.listDocuments(job.id);
   const nextFiles = input.files.filter((file) => file.size > 0);
+  let job = await jobStore.getActiveJobForUser(user.id);
 
   if (nextFiles.length > 0) {
-    await Promise.all(
-      existingDocuments
-        .filter((document) => document.status === "stored")
-        .map((document) => fileStore.deleteFile(document.storagePath)),
-    );
+    if (!job) {
+      job = await jobStore.createJob({
+        businessId: input.businessId,
+        presetId: input.presetId,
+        createdBy: user.id,
+      });
+    } else {
+      await clearBatch(job);
+      await jobStore.updateJob({
+        ...job,
+        businessId: input.businessId,
+        presetId: input.presetId,
+        status: "uploaded",
+        warnings: [],
+        reviewCompletedAt: null,
+      });
+    }
 
     const newDocuments = await buildSourceDocuments(job.id, nextFiles);
     await jobStore.updateDocuments(job.id, newDocuments);
     await jobStore.replaceRows(job.id, []);
     await jobStore.updateJob({
       ...job,
+        status: "uploaded",
+        warnings: [],
+        reviewCompletedAt: null,
+      });
+    return {
+      ...job,
+      businessId: input.businessId,
+      presetId: input.presetId,
       status: "uploaded",
       warnings: [],
       reviewCompletedAt: null,
-    });
-    await jobStore.appendAuditEvent(
-      createAuditEvent({
-        actorId: user.id,
-        businessId: input.businessId,
-        targetType: "job",
-        targetId: job.id,
-        action: "job_files_replaced",
-        metadata: { presetId: preset.id, fileCount: newDocuments.length },
-      }),
-    );
-    return { ...job, status: "uploaded", warnings: [], reviewCompletedAt: null };
+    };
   }
 
+  if (!job || job.businessId !== input.businessId || job.presetId !== input.presetId) {
+    throw new Error("Upload at least one document before processing.");
+  }
+
+  if (job.status === "review_required" || job.status === "completed") {
+    throw new Error("Upload new files to process this template again.");
+  }
+
+  const existingDocuments = await jobStore.listDocuments(job.id);
   if (existingDocuments.length === 0) {
     throw new Error("Upload at least one document before processing.");
   }
@@ -243,9 +243,12 @@ export async function createOrUpdateDraftJob(input: {
 }
 
 export async function processJob(businessId: string, jobId: string) {
-  const job = await jobStore.getJob(businessId, jobId);
-  if (!job) {
+  const { user, job } = await getActiveBatchForCurrentUser();
+  if (!job || job.id !== jobId || job.businessId !== businessId || job.createdBy !== user.id) {
     throw new Error("Job not found.");
+  }
+  if (job.status === "review_required" || job.status === "completed") {
+    throw new Error("Upload new files to process this template again.");
   }
   const preset = await presetStore.getById(businessId, job.presetId);
   if (!preset) {
@@ -302,9 +305,9 @@ export async function updateReviewRows(args: {
   patch: unknown;
 }) {
   const parsed = reviewPatchSchema.parse(args.patch);
-  const job = await jobStore.getJob(args.businessId, args.jobId);
-  if (!job) {
-    throw new Error("Job not found.");
+  const { user, job } = await getActiveBatchForCurrentUser();
+  if (!job || job.id !== args.jobId || job.businessId !== args.businessId || job.createdBy !== user.id) {
+    throw new Error("This batch is no longer active.");
   }
 
   const currentRows = await jobStore.listRows(args.jobId);
@@ -341,9 +344,9 @@ export async function buildExport(args: {
   request: unknown;
 }): Promise<{ buffer: Buffer; filename: string }> {
   const request = exportRequestSchema.parse(args.request);
-  const job = await jobStore.getJob(args.businessId, request.jobId);
-  if (!job) {
-    throw new Error("Job not found.");
+  const { user, job } = await getActiveBatchForCurrentUser();
+  if (!job || job.id !== request.jobId || job.businessId !== args.businessId || job.createdBy !== user.id) {
+    throw new Error("This batch is no longer active.");
   }
   if (!job.reviewCompletedAt) {
     throw new Error("Review must be completed before export.");
@@ -361,31 +364,7 @@ export async function buildExport(args: {
     request,
   });
   const filename = `${preset.name.replace(/\s+/g, "-").toLowerCase()}-${job.id}.xlsx`;
-  const saved = await fileStore.writeExport(job.id, filename, buffer);
-
-  await jobStore.saveExport({
-    id: randomUUID(),
-    jobId: job.id,
-    format: "xlsx",
-    generatedAt: new Date().toISOString(),
-    downloadPath: saved.downloadPath,
-  });
-
-  const documents = await jobStore.listDocuments(job.id);
-  await Promise.all(
-    documents
-      .filter((document) => document.status === "stored")
-      .map(async (document) => {
-        await fileStore.deleteFile(document.storagePath);
-        document.status = "deleted";
-        document.deletionScheduledAt = new Date().toISOString();
-      }),
-  );
-  await jobStore.updateDocuments(job.id, documents);
-  await jobStore.updateJob({
-    ...job,
-    status: "completed",
-  });
+  await jobStore.updateJob({ ...job, status: "completed" });
 
   return { buffer, filename };
 }

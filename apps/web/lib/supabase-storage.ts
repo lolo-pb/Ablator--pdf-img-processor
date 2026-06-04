@@ -2,7 +2,6 @@ import { FileStore } from "@bank/domain";
 import { getServerSupabaseClient } from "./supabase";
 
 const sourceBucket = "bank-source-files";
-const exportsBucket = "bank-export-files";
 
 export const supabaseFileStore: FileStore = {
   async writeSourceDocument(jobId, filename, buffer) {
@@ -27,28 +26,6 @@ export const supabaseFileStore: FileStore = {
     }
     return Buffer.from(await data.arrayBuffer());
   },
-  async writeExport(jobId, filename, buffer) {
-    const client = getServerSupabaseClient();
-    const path = `${jobId}/${filename}`;
-    const { error } = await client.storage.from(exportsBucket).upload(path, buffer, {
-      upsert: true,
-      contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    if (error) {
-      throw new Error(`Supabase export upload failed: ${error.message}`);
-    }
-    return { downloadPath: `${exportsBucket}:${path}` };
-  },
-  async readExport(downloadPath) {
-    const client = getServerSupabaseClient();
-    const [bucket, ...rest] = downloadPath.split(":");
-    const path = rest.join(":");
-    const { data, error } = await client.storage.from(bucket).download(path);
-    if (error || !data) {
-      throw new Error(`Supabase export download failed: ${error?.message ?? "missing file"}`);
-    }
-    return Buffer.from(await data.arrayBuffer());
-  },
   async deleteFile(storagePath) {
     const client = getServerSupabaseClient();
     const [bucket, ...rest] = storagePath.split(":");
@@ -59,4 +36,3 @@ export const supabaseFileStore: FileStore = {
     }
   },
 };
-

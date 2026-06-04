@@ -255,23 +255,21 @@ export interface PresetStore {
 
 export interface JobStore {
   listByBusiness(businessId: string): Promise<ProcessingJob[]>;
+  getActiveJobForUser(userId: string): Promise<ProcessingJob | null>;
   getJob(businessId: string, jobId: string): Promise<ProcessingJob | null>;
   createJob(input: Omit<ProcessingJob, "id" | "createdAt" | "updatedAt" | "status" | "warnings" | "reviewCompletedAt">): Promise<ProcessingJob>;
   updateJob(job: ProcessingJob): Promise<void>;
   listRows(jobId: string): Promise<ExtractedRow[]>;
   replaceRows(jobId: string, rows: ExtractedRow[]): Promise<void>;
-  saveExport(artifact: ExportArtifact): Promise<void>;
+  clearJobData(jobId: string): Promise<void>;
   listDocuments(jobId: string): Promise<SourceDocument[]>;
   addDocuments(documents: SourceDocument[]): Promise<void>;
   updateDocuments(jobId: string, documents: SourceDocument[]): Promise<void>;
-  appendAuditEvent(event: AuditEvent): Promise<void>;
 }
 
 export interface FileStore {
   writeSourceDocument(jobId: string, filename: string, buffer: Buffer): Promise<{ storagePath: string }>;
   readSourceDocument(storagePath: string): Promise<Buffer>;
-  writeExport(jobId: string, filename: string, buffer: Buffer): Promise<{ downloadPath: string }>;
-  readExport(downloadPath: string): Promise<Buffer>;
   deleteFile(path: string): Promise<void>;
 }
 
@@ -354,29 +352,9 @@ export const extractedRowsTable = pgTable("extracted_rows", {
   normalized: jsonb("normalized").notNull(),
 });
 
-export const exportArtifactsTable = pgTable("export_artifacts", {
-  id: uuid("id").primaryKey(),
-  jobId: uuid("job_id").notNull(),
-  format: text("format").notNull(),
-  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
-  downloadPath: text("download_path").notNull(),
-});
-
-export const auditEventsTable = pgTable("audit_events", {
-  id: uuid("id").primaryKey(),
-  actorId: uuid("actor_id").notNull(),
-  businessId: uuid("business_id").notNull(),
-  targetType: text("target_type").notNull(),
-  targetId: uuid("target_id").notNull(),
-  action: text("action").notNull(),
-  metadata: jsonb("metadata").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-});
-
 export const storagePolicyTable = pgTable("storage_policies", {
   businessId: uuid("business_id").primaryKey(),
   deleteSourceAfterExport: boolean("delete_source_after_export").notNull().default(true),
   deleteSourceAfterFailure: boolean("delete_source_after_failure").notNull().default(true),
   retentionDays: integer("retention_days").notNull().default(0),
 });
-

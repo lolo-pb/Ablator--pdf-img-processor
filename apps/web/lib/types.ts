@@ -1,8 +1,6 @@
 import type {
-  AuditEvent,
   Business,
   BusinessMembership,
-  ExportArtifact,
   ExtractedRow,
   Preset,
   ProcessingJob,
@@ -19,8 +17,5 @@ export type AppState = {
   jobs: ProcessingJob[];
   documents: SourceDocument[];
   rows: ExtractedRow[];
-  exports: ExportArtifact[];
-  auditEvents: AuditEvent[];
   storagePolicies: StoragePolicy[];
 };
-

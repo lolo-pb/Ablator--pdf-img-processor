@@ -1,8 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type {
-  AuditEvent,
   Business,
-  ExportArtifact,
   ExtractedRow,
   JobStore,
   MembershipRole,
@@ -16,7 +14,6 @@ import type {
 import { shouldUseSupabase } from "./runtime";
 import {
   assertSupabaseBusinessMembership,
-  createSupabaseAuditEvent,
   getSupabaseBusinessById,
   supabaseJobStore,
   supabasePresetStore,
@@ -87,6 +84,13 @@ export const jobStore: JobStore = {
     const state = await readAppState();
     return state.jobs.filter((job) => job.businessId === businessId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
+  async getActiveJobForUser(userId) {
+    const state = await readAppState();
+    const jobs = state.jobs
+      .filter((job) => job.createdBy === userId)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return jobs[0] ?? null;
+  },
   async getJob(businessId, jobId) {
     const state = await readAppState();
     return state.jobs.find((job) => job.businessId === businessId && job.id === jobId) ?? null;
@@ -125,9 +129,10 @@ export const jobStore: JobStore = {
       state.rows = state.rows.filter((row) => row.jobId !== jobId).concat(rows);
     });
   },
-  async saveExport(artifact) {
+  async clearJobData(jobId) {
     await withAppState((state) => {
-      state.exports.push(artifact);
+      state.rows = state.rows.filter((row) => row.jobId !== jobId);
+      state.documents = state.documents.filter((document) => document.jobId !== jobId);
     });
   },
   async listDocuments(jobId) {
@@ -144,11 +149,6 @@ export const jobStore: JobStore = {
       state.documents = state.documents.filter((document) => document.jobId !== jobId).concat(documents);
     });
   },
-  async appendAuditEvent(event) {
-    await withAppState((state) => {
-      state.auditEvents.push(event);
-    });
-  },
 };
 
 export async function getBusinessById(businessId: string): Promise<Business | null> {
@@ -157,17 +157,6 @@ export async function getBusinessById(businessId: string): Promise<Business | nu
   }
   const state = await readAppState();
   return state.businesses.find((business) => business.id === businessId) ?? null;
-}
-
-export function createAuditEvent(input: Omit<AuditEvent, "id" | "createdAt">): AuditEvent {
-  if (shouldUseSupabase()) {
-    return createSupabaseAuditEvent(input);
-  }
-  return {
-    ...input,
-    id: randomUUID(),
-    createdAt: new Date().toISOString(),
-  };
 }
 
 export function assertBusinessMembership(role: MembershipRole | undefined): MembershipRole {
@@ -211,6 +200,10 @@ export const activeJobStore: JobStore = {
     if (shouldUseSupabase()) return supabaseJobStore.listByBusiness(businessId);
     return jobStore.listByBusiness(businessId);
   },
+  async getActiveJobForUser(userId) {
+    if (shouldUseSupabase()) return supabaseJobStore.getActiveJobForUser(userId);
+    return jobStore.getActiveJobForUser(userId);
+  },
   async getJob(businessId, jobId) {
     if (shouldUseSupabase()) return supabaseJobStore.getJob(businessId, jobId);
     return jobStore.getJob(businessId, jobId);
@@ -231,9 +224,9 @@ export const activeJobStore: JobStore = {
     if (shouldUseSupabase()) return supabaseJobStore.replaceRows(jobId, rows);
     return jobStore.replaceRows(jobId, rows);
   },
-  async saveExport(artifact) {
-    if (shouldUseSupabase()) return supabaseJobStore.saveExport(artifact);
-    return jobStore.saveExport(artifact);
+  async clearJobData(jobId) {
+    if (shouldUseSupabase()) return supabaseJobStore.clearJobData(jobId);
+    return jobStore.clearJobData(jobId);
   },
   async listDocuments(jobId) {
     if (shouldUseSupabase()) return supabaseJobStore.listDocuments(jobId);
@@ -246,9 +239,5 @@ export const activeJobStore: JobStore = {
   async updateDocuments(jobId, documents) {
     if (shouldUseSupabase()) return supabaseJobStore.updateDocuments(jobId, documents);
     return jobStore.updateDocuments(jobId, documents);
-  },
-  async appendAuditEvent(event) {
-    if (shouldUseSupabase()) return supabaseJobStore.appendAuditEvent(event);
-    return jobStore.appendAuditEvent(event);
   },
 };

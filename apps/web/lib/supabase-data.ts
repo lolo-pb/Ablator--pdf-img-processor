@@ -1,9 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type {
-  AuditEvent,
   Business,
   ExtractedRow,
-  ExportArtifact,
   JobStore,
   MembershipRole,
   Preset,
@@ -207,6 +205,18 @@ export const supabaseJobStore: JobStore = {
     if (error) throw new Error(`Supabase jobs lookup failed: ${error.message}`);
     return (data ?? []).map(mapJob);
   },
+  async getActiveJobForUser(userId) {
+    const client = getServerSupabaseClient();
+    const { data, error } = await client
+      .from("processing_jobs")
+      .select("*")
+      .eq("created_by", userId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(`Supabase active job lookup failed: ${error.message}`);
+    return data ? mapJob(data) : null;
+  },
   async getJob(businessId, jobId) {
     const client = getServerSupabaseClient();
     const { data, error } = await client.from("processing_jobs").select("*").eq("business_id", businessId).eq("id", jobId).maybeSingle();
@@ -268,16 +278,12 @@ export const supabaseJobStore: JobStore = {
     })) as any);
     if (error) throw new Error(`Supabase rows insert failed: ${error.message}`);
   },
-  async saveExport(artifact) {
+  async clearJobData(jobId) {
     const client = getServerSupabaseClient();
-    const { error } = await client.from("export_artifacts").insert({
-      id: artifact.id,
-      job_id: artifact.jobId,
-      format: artifact.format,
-      generated_at: artifact.generatedAt,
-      download_path: artifact.downloadPath,
-    } as any);
-    if (error) throw new Error(`Supabase export save failed: ${error.message}`);
+    const { error: rowsError } = await client.from("extracted_rows").delete().eq("job_id", jobId);
+    if (rowsError) throw new Error(`Supabase rows clear failed: ${rowsError.message}`);
+    const { error: documentsError } = await client.from("source_documents").delete().eq("job_id", jobId);
+    if (documentsError) throw new Error(`Supabase documents clear failed: ${documentsError.message}`);
   },
   async listDocuments(jobId) {
     const client = getServerSupabaseClient();
@@ -306,20 +312,6 @@ export const supabaseJobStore: JobStore = {
     if (clearError) throw new Error(`Supabase documents clear failed: ${clearError.message}`);
     await this.addDocuments(documents);
   },
-  async appendAuditEvent(event) {
-    const client = getServerSupabaseClient();
-    const { error } = await client.from("audit_events").insert({
-      id: event.id,
-      actor_id: event.actorId,
-      business_id: event.businessId,
-      target_type: event.targetType,
-      target_id: event.targetId,
-      action: event.action,
-      metadata: event.metadata,
-      created_at: event.createdAt,
-    } as any);
-    if (error) throw new Error(`Supabase audit insert failed: ${error.message}`);
-  },
 };
 
 export async function getSupabaseBusinessById(businessId: string): Promise<Business | null> {
@@ -327,14 +319,6 @@ export async function getSupabaseBusinessById(businessId: string): Promise<Busin
   const { data, error } = await client.from("businesses").select("*").eq("id", businessId).maybeSingle();
   if (error) throw new Error(`Supabase business lookup failed: ${error.message}`);
   return data ? mapBusiness(data) : null;
-}
-
-export function createSupabaseAuditEvent(input: Omit<AuditEvent, "id" | "createdAt">): AuditEvent {
-  return {
-    ...input,
-    id: randomUUID(),
-    createdAt: new Date().toISOString(),
-  };
 }
 
 export function assertSupabaseBusinessMembership(role: MembershipRole | undefined): MembershipRole {

@@ -17,8 +17,6 @@ export const initialState: AppState = {
   jobs: [],
   documents: [],
   rows: [],
-  exports: [],
-  auditEvents: [],
   storagePolicies: [
     {
       deleteSourceAfterExport: true,
