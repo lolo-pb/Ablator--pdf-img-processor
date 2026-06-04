@@ -18,7 +18,8 @@ const mockDescriptions = [
 
 function buildInstructions(preset: Preset): string {
   return [
-    "You extract bank transaction rows from financial documents.",
+    "You extract structured rows from documents and images.",
+    "Use the template context to decide what counts as a row and what each field means.",
     "Return strict JSON only.",
     "Do not explain your reasoning.",
     `Document family: ${preset.documentFamily}.`,
