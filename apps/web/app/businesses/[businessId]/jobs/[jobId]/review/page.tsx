@@ -1,6 +1,7 @@
 import type { ExtractedRow, SourceDocument } from "@bank/domain";
 import { DashboardShell } from "../../../../../components/dashboard-shell";
 import { ReviewClient } from "../../../../../components/review-client";
+import { WarningSummary } from "../../../../../components/warning-summary";
 import { getLocale, getMessages } from "../../../../../../lib/i18n";
 import { getJobReviewData, getTemplateRoute } from "../../../../../../lib/services";
 
@@ -65,15 +66,19 @@ export default async function ReviewPage({
         <article className="focus-panel info-panel stack review-sidebar">
           <div className="stack tight">
             <span className="status-badge">{messages.review.jobSummary}</span>
-            <h2>{data.preset.name}</h2>
+            <h2 className="review-sidebar__title">{data.preset.name}</h2>
           </div>
           <div className="info-block">
             <strong>{messages.review.warnings}</strong>
-            <span>{data.job.warnings.length ? data.job.warnings.join(" | ") : messages.review.none}</span>
+            <WarningSummary
+              text={data.job.warnings.length ? data.job.warnings.join(" | ") : messages.review.none}
+              readMoreLabel={messages.review.readMore}
+              readLessLabel={messages.review.readLess}
+            />
           </div>
           <div className="info-block">
             <strong>{messages.review.uploadedFiles}</strong>
-            <ul className="file-list">
+            <ul className="file-list file-list--single-line">
               {data.documents.map((document: SourceDocument) => (
                 <li key={document.id}>
                   <span>{document.filename}</span>

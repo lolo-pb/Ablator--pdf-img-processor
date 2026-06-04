@@ -618,10 +618,28 @@ label {
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
   padding: 12px 14px;
   border-radius: 14px;
   background: white;
   border: 1px solid var(--line);
+}
+
+.file-list--single-line li > span,
+.file-list--single-line li > small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-list--single-line li > span {
+  flex: 1 1 auto;
+}
+
+.file-list--single-line li > small {
+  flex: 0 0 auto;
+  max-width: 34%;
 }
 
 .template-meta {
@@ -641,6 +659,64 @@ label {
 
 .review-sidebar {
   min-width: 0;
+}
+
+.review-sidebar__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.warning-summary {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.warning-summary__text {
+  position: relative;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  line-clamp: 4;
+  overflow-wrap: anywhere;
+}
+
+.warning-summary__text::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1.7em;
+  background: linear-gradient(180deg, rgba(245, 248, 255, 0) 0%, var(--surface-soft) 100%);
+  pointer-events: none;
+}
+
+.warning-summary__text.is-expanded {
+  display: block;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.warning-summary__text.is-expanded::after {
+  display: none;
+}
+
+.warning-summary__toggle {
+  padding: 0;
+  justify-self: start;
+  border: 0;
+  background: transparent;
+  color: var(--primary-strong);
+  font-weight: 700;
+  box-shadow: none;
 }
 
 .table-wrap {
