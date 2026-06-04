@@ -42,15 +42,9 @@ export default async function BusinessPage({
           </Link>
         </section>
       ) : (
-        <section className="card-grid">
+        <section className="card-grid template-grid">
           {workspace.templates.map((template) => (
-            <article key={template.id} className="dashboard-card template-card">
-              <div className="card-topline">
-                <span className="status-badge">{messages.business.family}</span>
-                <span className="soft-label">
-                  {messages.business.latestVersion} v{template.version}
-                </span>
-              </div>
+            <article key={template.id} className="dashboard-card template-card file-card">
               <div className="stack tight">
                 <h2>{template.name}</h2>
                 <p>{template.documentFamily}</p>
