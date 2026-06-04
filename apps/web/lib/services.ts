@@ -12,8 +12,14 @@ import {
 import { createExtractionProvider } from "@bank/extraction";
 import { buildWorkbookBuffer } from "@bank/export";
 import { authProvider } from "./auth";
-import { localFileStore } from "./file-store";
-import { createAuditEvent, getBusinessById, jobStore, presetStore, tenantStore } from "./repositories";
+import { fileStore } from "./file-store";
+import {
+  activeJobStore as jobStore,
+  activePresetStore as presetStore,
+  activeTenantStore as tenantStore,
+  createAuditEvent,
+  getBusinessById,
+} from "./repositories";
 
 const extractionProvider = createExtractionProvider();
 const editableStatuses: ProcessingJob["status"][] = ["uploaded", "review_required"];
@@ -144,7 +150,7 @@ async function buildSourceDocuments(jobId: string, files: File[]) {
   const documents = [];
   for (const file of files) {
     const buffer = Buffer.from(await file.arrayBuffer());
-    const written = await localFileStore.writeSourceDocument(jobId, file.name, buffer);
+    const written = await fileStore.writeSourceDocument(jobId, file.name, buffer);
     documents.push({
       id: randomUUID(),
       jobId,
@@ -204,7 +210,7 @@ export async function createOrUpdateDraftJob(input: {
     await Promise.all(
       existingDocuments
         .filter((document) => document.status === "stored")
-        .map((document) => localFileStore.deleteFile(document.storagePath)),
+        .map((document) => fileStore.deleteFile(document.storagePath)),
     );
 
     const newDocuments = await buildSourceDocuments(job.id, nextFiles);
@@ -256,7 +262,7 @@ export async function processJob(businessId: string, jobId: string) {
     const result = await extractionProvider.extractTransactions({
       preset,
       documents,
-      readDocument: localFileStore.readSourceDocument,
+      readDocument: fileStore.readSourceDocument,
     });
 
     const rows: ExtractedRow[] = result.rows.map((row, index) =>
@@ -355,7 +361,7 @@ export async function buildExport(args: {
     request,
   });
   const filename = `${preset.name.replace(/\s+/g, "-").toLowerCase()}-${job.id}.xlsx`;
-  const saved = await localFileStore.writeExport(job.id, filename, buffer);
+  const saved = await fileStore.writeExport(job.id, filename, buffer);
 
   await jobStore.saveExport({
     id: randomUUID(),
@@ -370,7 +376,7 @@ export async function buildExport(args: {
     documents
       .filter((document) => document.status === "stored")
       .map(async (document) => {
-        await localFileStore.deleteFile(document.storagePath);
+        await fileStore.deleteFile(document.storagePath);
         document.status = "deleted";
         document.deletionScheduledAt = new Date().toISOString();
       }),

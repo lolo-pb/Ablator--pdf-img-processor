@@ -20,6 +20,7 @@ const dictionaries = {
       backToBusiness: "Back to business",
       backToUpload: "Back to upload",
       switchLanguage: "Language",
+      localWarning: "Using local data",
     },
     home: {
       title: "Choose a business workspace",
@@ -102,6 +103,7 @@ const dictionaries = {
       backToBusiness: "Volver al negocio",
       backToUpload: "Volver a carga",
       switchLanguage: "Idioma",
+      localWarning: "Usando datos locales",
     },
     home: {
       title: "Elegi un espacio de negocio",

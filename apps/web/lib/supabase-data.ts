@@ -1,0 +1,343 @@
+import { randomUUID } from "node:crypto";
+import type {
+  AuditEvent,
+  Business,
+  ExtractedRow,
+  ExportArtifact,
+  JobStore,
+  MembershipRole,
+  Preset,
+  PresetStore,
+  ProcessingJob,
+  SourceDocument,
+  TenantContext,
+  TenantStore,
+} from "@bank/domain";
+import { demoMembership, demoPreset, demoUser } from "./demo-user";
+import { getServerSupabaseClient } from "./supabase";
+
+function mapBusiness(row: any): Business {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    billingContactEmail: row.billing_contact_email,
+    retentionPolicyDays: row.retention_policy_days,
+  };
+}
+
+function mapPreset(row: any): Preset {
+  return {
+    id: row.id,
+    businessId: row.business_id,
+    name: row.name,
+    version: row.version,
+    status: row.status,
+    documentFamily: row.document_family,
+    definition: row.definition,
+    exampleNotes: row.example_notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapJob(row: any): ProcessingJob {
+  return {
+    id: row.id,
+    businessId: row.business_id,
+    presetId: row.preset_id,
+    createdBy: row.created_by,
+    status: row.status,
+    warnings: row.warnings ?? [],
+    reviewCompletedAt: row.review_completed_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapDocument(row: any): SourceDocument {
+  return {
+    id: row.id,
+    jobId: row.job_id,
+    filename: row.filename,
+    mimeType: row.mime_type,
+    pageCount: row.page_count,
+    storagePath: row.storage_path,
+    status: row.status,
+    deletionScheduledAt: row.deletion_scheduled_at,
+  };
+}
+
+function mapRow(row: any): ExtractedRow {
+  return {
+    id: row.id,
+    jobId: row.job_id,
+    rowIndex: row.row_index,
+    rawFields: row.raw_fields,
+    normalized: row.normalized,
+  };
+}
+
+async function bootstrapIfNeeded() {
+  const client = getServerSupabaseClient();
+  const { data: business } = await client.from("businesses").select("id").eq("id", "business-acme").maybeSingle();
+  if (!business) {
+    await client.from("businesses").insert({
+      id: "business-acme",
+      name: "Acme Foods",
+      slug: "acme-foods",
+      billing_contact_email: "finance@acme.test",
+      retention_policy_days: 0,
+      created_at: new Date().toISOString(),
+    } as any);
+  }
+
+  const { data: user } = await client.from("users").select("id").eq("id", demoUser.id).maybeSingle();
+  if (!user) {
+    await client.from("users").insert({
+      id: demoUser.id,
+      name: demoUser.name,
+      email: demoUser.email,
+      status: demoUser.status,
+      created_at: new Date().toISOString(),
+    } as any);
+  }
+
+  const { data: membership } = await client
+    .from("business_memberships")
+    .select("id")
+    .eq("id", demoMembership.id)
+    .maybeSingle();
+  if (!membership) {
+    await client.from("business_memberships").insert({
+      id: demoMembership.id,
+      user_id: demoMembership.userId,
+      business_id: demoMembership.businessId,
+      role: demoMembership.role,
+      created_at: new Date().toISOString(),
+    } as any);
+  }
+
+  const { data: preset } = await client.from("presets").select("id").eq("id", demoPreset.id).maybeSingle();
+  if (!preset) {
+    await client.from("presets").insert({
+      id: demoPreset.id,
+      business_id: demoPreset.businessId,
+      name: demoPreset.name,
+      version: demoPreset.version,
+      status: demoPreset.status,
+      document_family: demoPreset.documentFamily,
+      definition: demoPreset.definition,
+      example_notes: demoPreset.exampleNotes,
+      created_at: demoPreset.createdAt,
+      updated_at: demoPreset.updatedAt,
+    } as any);
+  }
+}
+
+export const supabaseTenantStore: TenantStore = {
+  async listBusinessesForUser(userId) {
+    await bootstrapIfNeeded();
+    const client = getServerSupabaseClient();
+    const { data, error } = await client
+      .from("business_memberships")
+      .select("role, businesses(*)")
+      .eq("user_id", userId);
+    if (error) throw new Error(`Supabase memberships lookup failed: ${error.message}`);
+    return (data ?? []).map((row: any) => ({ business: mapBusiness(row.businesses), role: row.role as MembershipRole }));
+  },
+  async requireMembership(context: TenantContext) {
+    const client = getServerSupabaseClient();
+    const { data, error } = await client
+      .from("business_memberships")
+      .select("id")
+      .eq("business_id", context.businessId)
+      .eq("user_id", context.userId)
+      .eq("role", context.role)
+      .maybeSingle();
+    if (error || !data) throw new Error("Forbidden.");
+  },
+};
+
+export const supabasePresetStore: PresetStore = {
+  async listByBusiness(businessId) {
+    await bootstrapIfNeeded();
+    const client = getServerSupabaseClient();
+    const { data, error } = await client.from("presets").select("*").eq("business_id", businessId).order("version", { ascending: false });
+    if (error) throw new Error(`Supabase presets lookup failed: ${error.message}`);
+    return (data ?? []).map(mapPreset);
+  },
+  async getById(businessId, presetId) {
+    const client = getServerSupabaseClient();
+    const { data, error } = await client.from("presets").select("*").eq("business_id", businessId).eq("id", presetId).maybeSingle();
+    if (error) throw new Error(`Supabase preset lookup failed: ${error.message}`);
+    return data ? mapPreset(data) : null;
+  },
+  async saveVersion(input) {
+    const client = getServerSupabaseClient();
+    const { data: related, error: lookupError } = await client.from("presets").select("version").eq("business_id", input.businessId).eq("name", input.name);
+    if (lookupError) throw new Error(`Supabase preset version lookup failed: ${lookupError.message}`);
+    const version = related && related.length ? Math.max(...related.map((row: any) => row.version)) + 1 : 1;
+    const now = new Date().toISOString();
+    const { data, error } = await client
+      .from("presets")
+      .insert({
+        id: input.id ?? randomUUID(),
+        business_id: input.businessId,
+        name: input.name,
+        version,
+        status: input.status,
+        document_family: input.documentFamily,
+        definition: input.definition,
+        example_notes: input.exampleNotes,
+        created_at: now,
+        updated_at: now,
+      } as any)
+      .select("*")
+      .single();
+    if (error) throw new Error(`Supabase preset save failed: ${error.message}`);
+    return mapPreset(data);
+  },
+};
+
+export const supabaseJobStore: JobStore = {
+  async listByBusiness(businessId) {
+    const client = getServerSupabaseClient();
+    const { data, error } = await client.from("processing_jobs").select("*").eq("business_id", businessId).order("created_at", { ascending: false });
+    if (error) throw new Error(`Supabase jobs lookup failed: ${error.message}`);
+    return (data ?? []).map(mapJob);
+  },
+  async getJob(businessId, jobId) {
+    const client = getServerSupabaseClient();
+    const { data, error } = await client.from("processing_jobs").select("*").eq("business_id", businessId).eq("id", jobId).maybeSingle();
+    if (error) throw new Error(`Supabase job lookup failed: ${error.message}`);
+    return data ? mapJob(data) : null;
+  },
+  async createJob(input) {
+    const client = getServerSupabaseClient();
+    const now = new Date().toISOString();
+    const { data, error } = await client
+      .from("processing_jobs")
+      .insert({
+        id: randomUUID(),
+        business_id: input.businessId,
+        preset_id: input.presetId,
+        created_by: input.createdBy,
+        status: "uploaded",
+        warnings: [],
+        review_completed_at: null,
+        created_at: now,
+        updated_at: now,
+      } as any)
+      .select("*")
+      .single();
+    if (error) throw new Error(`Supabase job creation failed: ${error.message}`);
+    return mapJob(data);
+  },
+  async updateJob(job) {
+    const client = getServerSupabaseClient();
+    const processingJobsTable: any = client.from("processing_jobs");
+    const { error } = await processingJobsTable.update({
+      business_id: job.businessId,
+      preset_id: job.presetId,
+      created_by: job.createdBy,
+      status: job.status,
+      warnings: job.warnings,
+      review_completed_at: job.reviewCompletedAt,
+      updated_at: new Date().toISOString(),
+    }).eq("id", job.id);
+    if (error) throw new Error(`Supabase job update failed: ${error.message}`);
+  },
+  async listRows(jobId) {
+    const client = getServerSupabaseClient();
+    const { data, error } = await client.from("extracted_rows").select("*").eq("job_id", jobId).order("row_index", { ascending: true });
+    if (error) throw new Error(`Supabase rows lookup failed: ${error.message}`);
+    return (data ?? []).map(mapRow);
+  },
+  async replaceRows(jobId, rows) {
+    const client = getServerSupabaseClient();
+    const { error: clearError } = await client.from("extracted_rows").delete().eq("job_id", jobId);
+    if (clearError) throw new Error(`Supabase rows clear failed: ${clearError.message}`);
+    if (!rows.length) return;
+    const { error } = await client.from("extracted_rows").insert(rows.map((row) => ({
+      id: row.id,
+      job_id: row.jobId,
+      row_index: row.rowIndex,
+      raw_fields: row.rawFields,
+      normalized: row.normalized,
+    })) as any);
+    if (error) throw new Error(`Supabase rows insert failed: ${error.message}`);
+  },
+  async saveExport(artifact) {
+    const client = getServerSupabaseClient();
+    const { error } = await client.from("export_artifacts").insert({
+      id: artifact.id,
+      job_id: artifact.jobId,
+      format: artifact.format,
+      generated_at: artifact.generatedAt,
+      download_path: artifact.downloadPath,
+    } as any);
+    if (error) throw new Error(`Supabase export save failed: ${error.message}`);
+  },
+  async listDocuments(jobId) {
+    const client = getServerSupabaseClient();
+    const { data, error } = await client.from("source_documents").select("*").eq("job_id", jobId);
+    if (error) throw new Error(`Supabase documents lookup failed: ${error.message}`);
+    return (data ?? []).map(mapDocument);
+  },
+  async addDocuments(documents) {
+    const client = getServerSupabaseClient();
+    if (!documents.length) return;
+    const { error } = await client.from("source_documents").insert(documents.map((document) => ({
+      id: document.id,
+      job_id: document.jobId,
+      filename: document.filename,
+      mime_type: document.mimeType,
+      page_count: document.pageCount,
+      storage_path: document.storagePath,
+      status: document.status,
+      deletion_scheduled_at: document.deletionScheduledAt,
+    })) as any);
+    if (error) throw new Error(`Supabase documents insert failed: ${error.message}`);
+  },
+  async updateDocuments(jobId, documents) {
+    const client = getServerSupabaseClient();
+    const { error: clearError } = await client.from("source_documents").delete().eq("job_id", jobId);
+    if (clearError) throw new Error(`Supabase documents clear failed: ${clearError.message}`);
+    await this.addDocuments(documents);
+  },
+  async appendAuditEvent(event) {
+    const client = getServerSupabaseClient();
+    const { error } = await client.from("audit_events").insert({
+      id: event.id,
+      actor_id: event.actorId,
+      business_id: event.businessId,
+      target_type: event.targetType,
+      target_id: event.targetId,
+      action: event.action,
+      metadata: event.metadata,
+      created_at: event.createdAt,
+    } as any);
+    if (error) throw new Error(`Supabase audit insert failed: ${error.message}`);
+  },
+};
+
+export async function getSupabaseBusinessById(businessId: string): Promise<Business | null> {
+  const client = getServerSupabaseClient();
+  const { data, error } = await client.from("businesses").select("*").eq("id", businessId).maybeSingle();
+  if (error) throw new Error(`Supabase business lookup failed: ${error.message}`);
+  return data ? mapBusiness(data) : null;
+}
+
+export function createSupabaseAuditEvent(input: Omit<AuditEvent, "id" | "createdAt">): AuditEvent {
+  return {
+    ...input,
+    id: randomUUID(),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function assertSupabaseBusinessMembership(role: MembershipRole | undefined): MembershipRole {
+  if (!role) throw new Error("Missing business membership.");
+  return role;
+}

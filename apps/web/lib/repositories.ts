@@ -13,6 +13,15 @@ import type {
   TenantContext,
   TenantStore,
 } from "@bank/domain";
+import { shouldUseSupabase } from "./runtime";
+import {
+  assertSupabaseBusinessMembership,
+  createSupabaseAuditEvent,
+  getSupabaseBusinessById,
+  supabaseJobStore,
+  supabasePresetStore,
+  supabaseTenantStore,
+} from "./supabase-data";
 import { withAppState, readAppState } from "./state-store";
 
 export const tenantStore: TenantStore = {
@@ -143,11 +152,17 @@ export const jobStore: JobStore = {
 };
 
 export async function getBusinessById(businessId: string): Promise<Business | null> {
+  if (shouldUseSupabase()) {
+    return getSupabaseBusinessById(businessId);
+  }
   const state = await readAppState();
   return state.businesses.find((business) => business.id === businessId) ?? null;
 }
 
 export function createAuditEvent(input: Omit<AuditEvent, "id" | "createdAt">): AuditEvent {
+  if (shouldUseSupabase()) {
+    return createSupabaseAuditEvent(input);
+  }
   return {
     ...input,
     id: randomUUID(),
@@ -156,9 +171,84 @@ export function createAuditEvent(input: Omit<AuditEvent, "id" | "createdAt">): A
 }
 
 export function assertBusinessMembership(role: MembershipRole | undefined): MembershipRole {
+  if (shouldUseSupabase()) {
+    return assertSupabaseBusinessMembership(role);
+  }
   if (!role) {
     throw new Error("Missing business membership.");
   }
   return role;
 }
 
+export const activeTenantStore: TenantStore = {
+  async listBusinessesForUser(userId) {
+    if (shouldUseSupabase()) return supabaseTenantStore.listBusinessesForUser(userId);
+    return tenantStore.listBusinessesForUser(userId);
+  },
+  async requireMembership(context) {
+    if (shouldUseSupabase()) return supabaseTenantStore.requireMembership(context);
+    return tenantStore.requireMembership(context);
+  },
+};
+
+export const activePresetStore: PresetStore = {
+  async listByBusiness(businessId) {
+    if (shouldUseSupabase()) return supabasePresetStore.listByBusiness(businessId);
+    return presetStore.listByBusiness(businessId);
+  },
+  async getById(businessId, presetId) {
+    if (shouldUseSupabase()) return supabasePresetStore.getById(businessId, presetId);
+    return presetStore.getById(businessId, presetId);
+  },
+  async saveVersion(input) {
+    if (shouldUseSupabase()) return supabasePresetStore.saveVersion(input);
+    return presetStore.saveVersion(input);
+  },
+};
+
+export const activeJobStore: JobStore = {
+  async listByBusiness(businessId) {
+    if (shouldUseSupabase()) return supabaseJobStore.listByBusiness(businessId);
+    return jobStore.listByBusiness(businessId);
+  },
+  async getJob(businessId, jobId) {
+    if (shouldUseSupabase()) return supabaseJobStore.getJob(businessId, jobId);
+    return jobStore.getJob(businessId, jobId);
+  },
+  async createJob(input) {
+    if (shouldUseSupabase()) return supabaseJobStore.createJob(input);
+    return jobStore.createJob(input);
+  },
+  async updateJob(job) {
+    if (shouldUseSupabase()) return supabaseJobStore.updateJob(job);
+    return jobStore.updateJob(job);
+  },
+  async listRows(jobId) {
+    if (shouldUseSupabase()) return supabaseJobStore.listRows(jobId);
+    return jobStore.listRows(jobId);
+  },
+  async replaceRows(jobId, rows) {
+    if (shouldUseSupabase()) return supabaseJobStore.replaceRows(jobId, rows);
+    return jobStore.replaceRows(jobId, rows);
+  },
+  async saveExport(artifact) {
+    if (shouldUseSupabase()) return supabaseJobStore.saveExport(artifact);
+    return jobStore.saveExport(artifact);
+  },
+  async listDocuments(jobId) {
+    if (shouldUseSupabase()) return supabaseJobStore.listDocuments(jobId);
+    return jobStore.listDocuments(jobId);
+  },
+  async addDocuments(documents) {
+    if (shouldUseSupabase()) return supabaseJobStore.addDocuments(documents);
+    return jobStore.addDocuments(documents);
+  },
+  async updateDocuments(jobId, documents) {
+    if (shouldUseSupabase()) return supabaseJobStore.updateDocuments(jobId, documents);
+    return jobStore.updateDocuments(jobId, documents);
+  },
+  async appendAuditEvent(event) {
+    if (shouldUseSupabase()) return supabaseJobStore.appendAuditEvent(event);
+    return jobStore.appendAuditEvent(event);
+  },
+};

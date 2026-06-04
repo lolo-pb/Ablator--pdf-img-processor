@@ -1,6 +1,8 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { FileStore } from "@bank/domain";
+import { shouldUseSupabase } from "./runtime";
+import { supabaseFileStore } from "./supabase-storage";
 
 const root = path.join(process.cwd(), ".local");
 const uploadsDir = path.join(root, "uploads");
@@ -37,3 +39,25 @@ export const localFileStore: FileStore = {
   },
 };
 
+export const fileStore: FileStore = {
+  async writeSourceDocument(jobId, filename, buffer) {
+    if (shouldUseSupabase()) return supabaseFileStore.writeSourceDocument(jobId, filename, buffer);
+    return localFileStore.writeSourceDocument(jobId, filename, buffer);
+  },
+  async readSourceDocument(storagePath) {
+    if (shouldUseSupabase()) return supabaseFileStore.readSourceDocument(storagePath);
+    return localFileStore.readSourceDocument(storagePath);
+  },
+  async writeExport(jobId, filename, buffer) {
+    if (shouldUseSupabase()) return supabaseFileStore.writeExport(jobId, filename, buffer);
+    return localFileStore.writeExport(jobId, filename, buffer);
+  },
+  async readExport(downloadPath) {
+    if (shouldUseSupabase()) return supabaseFileStore.readExport(downloadPath);
+    return localFileStore.readExport(downloadPath);
+  },
+  async deleteFile(filePath) {
+    if (shouldUseSupabase()) return supabaseFileStore.deleteFile(filePath);
+    return localFileStore.deleteFile(filePath);
+  },
+};

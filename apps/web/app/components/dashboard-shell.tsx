@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Locale, Messages } from "../../lib/i18n";
+import { shouldUseSupabase } from "../../lib/runtime";
 import { LanguageSwitcher } from "./language-switcher";
 
 export function DashboardShell({
@@ -22,6 +23,8 @@ export function DashboardShell({
   navItems: Array<{ label: string; href?: string; active?: boolean }>;
   children: ReactNode;
 }) {
+  const usingLocalData = !shouldUseSupabase();
+
   return (
     <main className="dashboard-shell">
       <aside className="dashboard-sidebar">
@@ -45,6 +48,7 @@ export function DashboardShell({
             ),
           )}
         </nav>
+        {usingLocalData ? <div className="sidebar-warning">{messages.nav.localWarning}</div> : null}
         <LanguageSwitcher currentPath={currentPath} locale={locale} label={messages.nav.switchLanguage} />
       </aside>
 
