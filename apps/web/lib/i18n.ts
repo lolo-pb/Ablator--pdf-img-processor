@@ -54,6 +54,11 @@ const dictionaries = {
     templateDetail: {
       uploadTitle: "Upload files",
       uploadBody: "Drop a PDF or image here, or browse files, then process them with this template.",
+      dropPrompt: "Drop PDF or image files here",
+      browseFiles: "Choose files",
+      fileTypesHint: "Supports PDF, PNG, JPG, and other common image formats.",
+      selectedFiles: "Selected files",
+      removeFile: "Remove",
       currentFiles: "Current files",
       noFiles: "No files uploaded yet.",
       process: "Process",
@@ -137,6 +142,11 @@ const dictionaries = {
     templateDetail: {
       uploadTitle: "Cargar archivos",
       uploadBody: "Solta un PDF o imagen aca, o busca archivos, y despues procesalos con esta plantilla.",
+      dropPrompt: "Solta archivos PDF o imagenes aca",
+      browseFiles: "Elegir archivos",
+      fileTypesHint: "Soporta PDF, PNG, JPG y otros formatos de imagen comunes.",
+      selectedFiles: "Archivos seleccionados",
+      removeFile: "Quitar",
       currentFiles: "Archivos actuales",
       noFiles: "Todavia no hay archivos cargados.",
       process: "Procesar",

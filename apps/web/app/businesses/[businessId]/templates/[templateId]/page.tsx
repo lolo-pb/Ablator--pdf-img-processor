@@ -1,6 +1,7 @@
 import type { SourceDocument } from "@bank/domain";
 import { processTemplateAction } from "../../../../actions";
 import { DashboardShell } from "../../../../components/dashboard-shell";
+import { UploadPicker } from "../../../../components/upload-picker";
 import { getLocale, getMessages } from "../../../../../lib/i18n";
 import { getTemplateDetailData, getReviewRoute } from "../../../../../lib/services";
 
@@ -35,21 +36,28 @@ export default async function TemplateDetailPage({
       <section className="template-layout">
         <article className="focus-panel upload-panel">
           <div className="stack tight">
-            <span className="status-badge">{messages.templateDetail.uploadTitle}</span>
             <h2>{messages.templateDetail.uploadTitle}</h2>
-            <p>{messages.templateDetail.replaceHint}</p>
+            <p>{messages.templateDetail.uploadBody}</p>
+            <p className="muted">{messages.templateDetail.replaceHint}</p>
           </div>
 
           <form action={processTemplateAction} className="stack">
             <input type="hidden" name="businessId" value={businessId} />
             <input type="hidden" name="presetId" value={templateId} />
             <input type="hidden" name="jobId" value={data.job?.id ?? ""} />
-            <label className="dropzone">
-              <span className="dropzone__icon">+</span>
-              <span className="dropzone__title">{messages.templateDetail.uploadTitle}</span>
-              <span className="dropzone__body">{messages.templateDetail.uploadBody}</span>
-              <input name="documents" type="file" accept=".pdf,image/*" multiple={!data.job} required={!data.job} />
-            </label>
+            <UploadPicker
+              name="documents"
+              accept=".pdf,image/*"
+              multiple={true}
+              required={!data.job}
+              labels={{
+                browseFiles: messages.templateDetail.browseFiles,
+                dropPrompt: messages.templateDetail.dropPrompt,
+                fileTypesHint: messages.templateDetail.fileTypesHint,
+                removeFile: messages.templateDetail.removeFile,
+                selectedFiles: messages.templateDetail.selectedFiles,
+              }}
+            />
             <button type="submit">{messages.templateDetail.process}</button>
           </form>
         </article>
