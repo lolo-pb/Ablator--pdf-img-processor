@@ -231,7 +231,7 @@ export async function createOrReplaceActiveBatch(input: {
   }
 
   if (job.status === "review_required" || job.status === "completed") {
-    throw new Error("Upload new files to process this template again.");
+    return job;
   }
 
   const existingDocuments = await jobStore.listDocuments(job.id);

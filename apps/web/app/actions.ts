@@ -47,7 +47,10 @@ export async function processTemplateAction(formData: FormData) {
     files,
   });
 
-  await processJob(businessId, job.id);
+  const shouldProcess = files.length > 0 || job.status === "uploaded" || job.status === "failed";
+  if (shouldProcess) {
+    await processJob(businessId, job.id);
+  }
   revalidatePath(getTemplateRoute(businessId, presetId, job.id));
   redirect(getReviewRoute(businessId, job.id));
 }
