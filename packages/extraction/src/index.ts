@@ -29,6 +29,23 @@ function buildInstructions(preset: Preset): string {
   ].join(" ");
 }
 
+function toConfidenceObject(value: unknown) {
+  const overall =
+    typeof value === "number" && Number.isFinite(value)
+      ? Math.max(0, Math.min(1, value))
+      : 0.65;
+
+  return {
+    overall,
+    fields: {
+      date: overall,
+      description: overall,
+      amount: overall,
+      category: overall,
+    },
+  };
+}
+
 function buildMockResult(documents: SourceDocument[]): ExtractionResult {
   const rows = documents.flatMap((document, documentIndex) =>
     Array.from({ length: 3 }, (_, rowIndex) =>
@@ -130,18 +147,7 @@ async function runOpenAiExtraction(args: {
                   counterparty: { type: ["string", "null"] },
                   reference: { type: "string" },
                   notes: { type: "string" },
-                  confidence: {
-                    type: "object",
-                    additionalProperties: false,
-                    properties: {
-                      overall: { type: "number" },
-                      fields: {
-                        type: "object",
-                        additionalProperties: { type: "number" },
-                      },
-                    },
-                    required: ["overall", "fields"],
-                  },
+                  confidence: { type: "number" },
                 },
                 required: [
                   "date",
@@ -187,7 +193,7 @@ async function runOpenAiExtraction(args: {
       counterparty: row.counterparty ?? null,
       reference: row.reference ?? "",
       notes: row.notes ?? "",
-      confidence: row.confidence,
+      confidence: toConfidenceObject(row.confidence),
       reviewStatus: "pending",
     }),
   );
