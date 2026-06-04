@@ -18,3 +18,15 @@
 6. User edits/approves rows in the review table.
 7. App exports reviewed rows to Excel.
 8. Source files are deleted after export.
+
+## AI Processing Simple
+
+the actual "promt builder" is in buildInstructions(...) in : `packages\extraction\src\index.ts`
+
+
+1. The selected template gives the AI instructions, categories, and ignore rules.
+2. The uploaded file is read from storage and converted to base64.
+3. The app sends the file plus a strict JSON schema to OpenAI.
+4. OpenAI returns transaction rows in JSON.
+5. The app normalizes that JSON into the internal row format.
+6. Those rows are saved, shown in review, and later exported to Excel.
