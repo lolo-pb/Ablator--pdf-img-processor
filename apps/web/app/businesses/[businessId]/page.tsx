@@ -47,7 +47,7 @@ export default async function BusinessPage({
             <article key={template.id} className="dashboard-card template-card file-card">
               <div className="stack tight">
                 <h2>{template.name}</h2>
-                <p>{template.documentFamily}</p>
+                <p>{template.documentType}</p>
               </div>
               <div className="template-meta">
                 <strong>{messages.business.categories}</strong>

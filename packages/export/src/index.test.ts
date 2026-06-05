@@ -8,7 +8,7 @@ const preset: Preset = {
   name: "Test preset",
   version: 1,
   status: "active",
-  documentFamily: "bank_summary",
+  documentType: "bank_summary",
   definition: {
     columns: [
       { key: "date", label: "Date", type: "date", required: true },
@@ -60,4 +60,3 @@ describe("buildWorkbookBuffer", () => {
     expect(buffer.byteLength).toBeGreaterThan(0);
   });
 });
-

@@ -29,7 +29,7 @@ create table if not exists public.presets (
   name text not null,
   version integer not null,
   status text not null,
-  document_family text not null,
+  document_type text not null,
   definition jsonb not null,
   example_notes text not null default '',
   created_at timestamptz not null default now(),

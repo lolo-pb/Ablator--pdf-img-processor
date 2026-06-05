@@ -22,7 +22,7 @@ function buildInstructions(preset: Preset): string {
     "Use the template context to decide what counts as a row and what each field means.",
     "Return strict JSON only.",
     "Do not explain your reasoning.",
-    `Document family: ${preset.documentFamily}.`,
+    `Document type: ${preset.documentType}.`,
     `Instruction text: ${preset.definition.instructionText}`,
     `Ignore rules: ${preset.definition.ignoreRules.join("; ") || "none"}`,
     `Categories: ${preset.definition.classificationCategories.join(", ") || "Uncategorized"}`,

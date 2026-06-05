@@ -36,12 +36,8 @@ export default async function NewTemplatePage({
             <input name="name" defaultValue="Bank Summary Classifier" required />
           </label>
           <label>
-            {messages.templateForm.documentFamily}
-            <select name="documentFamily" defaultValue="bank_summary">
-              <option value="bank_summary">Bank summary</option>
-              <option value="reconciliation">Reconciliation</option>
-              <option value="statement">Statement</option>
-            </select>
+            {messages.templateForm.documentType}
+            <input name="documentType" defaultValue="bank_summary" required />
           </label>
           <label>
             {messages.templateForm.instructions}

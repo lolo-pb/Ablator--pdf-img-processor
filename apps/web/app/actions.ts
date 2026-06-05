@@ -22,7 +22,7 @@ export async function createPresetAction(formData: FormData) {
   const preset = await savePresetVersion({
     businessId,
     name: String(formData.get("name")),
-    documentFamily: String(formData.get("documentFamily")) as "bank_summary" | "reconciliation" | "statement",
+    documentType: String(formData.get("documentType")),
     instructionText: String(formData.get("instructionText")),
     categories: splitLines(formData.get("categories")),
     ignoreRules: splitLines(formData.get("ignoreRules")),

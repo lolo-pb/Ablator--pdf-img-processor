@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { presetDefinitionSchema } from "./index";
+import { documentTypeSchema, presetDefinitionSchema } from "./index";
 
 describe("presetDefinitionSchema", () => {
   it("rejects duplicate column keys", () => {
@@ -21,3 +21,10 @@ describe("presetDefinitionSchema", () => {
   });
 });
 
+describe("documentTypeSchema", () => {
+  it("accepts custom non-empty document types", () => {
+    const parsed = documentTypeSchema.safeParse("credit card summary");
+
+    expect(parsed.success).toBe(true);
+  });
+});

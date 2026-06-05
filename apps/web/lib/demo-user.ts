@@ -22,7 +22,7 @@ export const demoPreset: Preset = {
   name: "Bank Summary Classifier",
   version: 1,
   status: "active",
-  documentFamily: "bank_summary",
+  documentType: "bank_summary",
   definition: {
     columns: [
       { key: "date", label: "Date", type: "date", required: true },
@@ -49,4 +49,3 @@ export const demoPreset: Preset = {
   createdAt: now,
   updatedAt: now,
 };
-

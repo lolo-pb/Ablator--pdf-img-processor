@@ -68,8 +68,8 @@ export default async function TemplateDetailPage({
             <h2>{messages.templateDetail.templateInfo}</h2>
           </div>
           <div className="info-block">
-            <strong>{messages.business.family}</strong>
-            <span>{data.preset.documentFamily}</span>
+            <strong>{messages.business.documentType}</strong>
+            <span>{data.preset.documentType}</span>
           </div>
           <div className="info-block">
             <strong>{messages.business.categories}</strong>

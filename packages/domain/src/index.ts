@@ -4,8 +4,8 @@ import { z } from "zod";
 export const membershipRoleSchema = z.enum(["owner", "admin", "member"]);
 export type MembershipRole = z.infer<typeof membershipRoleSchema>;
 
-export const documentFamilySchema = z.enum(["bank_summary", "reconciliation", "statement"]);
-export type DocumentFamily = z.infer<typeof documentFamilySchema>;
+export const documentTypeSchema = z.string().min(1);
+export type DocumentType = z.infer<typeof documentTypeSchema>;
 
 export const processingJobStatusSchema = z.enum([
   "uploaded",
@@ -81,7 +81,7 @@ export const presetSchema = z.object({
   name: z.string().min(1),
   version: z.number().int().positive(),
   status: z.enum(["draft", "active", "archived"]).default("active"),
-  documentFamily: documentFamilySchema,
+  documentType: documentTypeSchema,
   definition: presetDefinitionSchema,
   exampleNotes: z.string().default(""),
   createdAt: z.string().min(1),
@@ -314,7 +314,7 @@ export const presetsTable = pgTable("presets", {
   name: text("name").notNull(),
   version: integer("version").notNull(),
   status: text("status").notNull(),
-  documentFamily: text("document_family").notNull(),
+  documentType: text("document_type").notNull(),
   definition: jsonb("definition").notNull(),
   exampleNotes: text("example_notes").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),

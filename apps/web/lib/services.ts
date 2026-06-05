@@ -372,7 +372,7 @@ export async function buildExport(args: {
 export async function savePresetVersion(args: {
   businessId: string;
   name: string;
-  documentFamily: Preset["documentFamily"];
+  documentType: Preset["documentType"];
   instructionText: string;
   categories: string[];
   ignoreRules: string[];
@@ -384,7 +384,7 @@ export async function savePresetVersion(args: {
     businessId: args.businessId,
     name: args.name,
     status: "active",
-    documentFamily: args.documentFamily,
+    documentType: args.documentType,
     definition: {
       columns: [
         { key: "date", label: "Date", type: "date", required: true },
