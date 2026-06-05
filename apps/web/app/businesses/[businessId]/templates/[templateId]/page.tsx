@@ -17,6 +17,12 @@ export default async function TemplateDetailPage({
   const locale = await getLocale();
   const messages = await getMessages(locale);
   const data = await getTemplateDetailData({ businessId, templateId, jobId });
+  const reviewJob =
+    data.job &&
+    data.job.presetId === data.preset.id &&
+    (data.job.status === "review_required" || data.job.status === "completed")
+      ? data.job
+      : null;
 
   return (
     <DashboardShell
@@ -30,7 +36,7 @@ export default async function TemplateDetailPage({
         { label: messages.nav.businesses, href: "/", active: false },
         { label: messages.nav.templates, href: `/businesses/${businessId}`, active: false },
         { label: data.preset.name, href: `/businesses/${businessId}/templates/${templateId}`, active: true },
-        ...(data.job ? [{ label: messages.nav.review, href: getReviewRoute(businessId, data.job.id), active: false }] : []),
+        ...(reviewJob ? [{ label: messages.nav.review, href: getReviewRoute(businessId, reviewJob.id), active: false }] : []),
       ]}
     >
       <section className="template-layout">
