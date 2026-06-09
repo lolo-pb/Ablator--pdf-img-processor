@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import { GoogleGenAI, createPartFromUri, createUserContent } from "@google/genai";
 import {
   ExtractionProvider,
   extractionResultSchema,
@@ -15,6 +15,48 @@ const mockDescriptions = [
   "Software subscription",
   "Card payment",
 ];
+
+const GEMINI_MODEL = "gemini-2.5-flash";
+const RESPONSE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    rows: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          date: { type: "string" },
+          description: { type: "string" },
+          amount: { type: "number" },
+          currency: { type: "string" },
+          direction: { type: "string", enum: ["debit", "credit"] },
+          balance: { type: ["number", "null"] },
+          category: { type: "string" },
+          counterparty: { type: ["string", "null"] },
+          reference: { type: "string" },
+          notes: { type: "string" },
+          confidence: { type: "number" },
+        },
+        required: [
+          "date",
+          "description",
+          "amount",
+          "currency",
+          "direction",
+          "balance",
+          "category",
+          "counterparty",
+          "reference",
+          "notes",
+          "confidence",
+        ],
+      },
+    },
+  },
+  required: ["rows"],
+} as const;
 
 function buildInstructions(preset: Preset): string {
   return [
@@ -62,7 +104,7 @@ function buildMockResult(documents: SourceDocument[]): ExtractionResult {
         category: rowIndex % 2 === 0 ? "Operations" : "Income",
         counterparty: rowIndex % 2 === 0 ? "Vendor" : "Client",
         reference: `MOCK-${documentIndex}-${rowIndex}`,
-        notes: "Mock extraction used because OPENAI_API_KEY is not configured.",
+        notes: "Mock extraction used because GEMINI_API_KEY is not configured.",
         confidence: {
           overall: 0.72,
           fields: {
@@ -89,96 +131,71 @@ function buildMockResult(documents: SourceDocument[]): ExtractionResult {
   });
 }
 
-async function runOpenAiExtraction(args: {
+function getGeminiClient(apiKey: string) {
+  return new GoogleGenAI({ apiKey });
+}
+
+async function uploadDocumentToGemini(args: {
+  client: GoogleGenAI;
+  document: SourceDocument;
+  readDocument: (storagePath: string) => Promise<Buffer>;
+}) {
+  const buffer = await args.readDocument(args.document.storagePath);
+  const blob = new Blob([new Uint8Array(buffer)], {
+    type: args.document.mimeType || "application/octet-stream",
+  });
+
+  return args.client.files.upload({
+    file: blob,
+    config: {
+      mimeType: args.document.mimeType || "application/octet-stream",
+      displayName: args.document.filename,
+    },
+  });
+}
+
+async function runGeminiExtraction(args: {
   apiKey: string;
   preset: Preset;
   documents: SourceDocument[];
   readDocument: (storagePath: string) => Promise<Buffer>;
 }): Promise<ExtractionResult> {
-  const client = new OpenAI({ apiKey: args.apiKey });
-  const content: any[] = [
-    {
-      type: "input_text",
-      text: "Extract financial transaction rows and answer in strict JSON matching the requested schema.",
-    },
+  const client = getGeminiClient(args.apiKey);
+  const parts: Array<string | ReturnType<typeof createPartFromUri>> = [
+    [
+      "Extract financial transaction rows and answer in strict JSON matching the requested schema.",
+      buildInstructions(args.preset),
+    ].join("\n\n"),
   ];
 
   for (const document of args.documents) {
-    const buffer = await args.readDocument(document.storagePath);
-    const base64 = buffer.toString("base64");
-    if (document.mimeType === "application/pdf") {
-      content.push({
-        type: "input_file",
-        filename: document.filename,
-        file_data: `data:application/pdf;base64,${base64}`,
-      });
-    } else {
-      content.push({
-        type: "input_image",
-        image_url: `data:${document.mimeType};base64,${base64}`,
-        detail: "high",
-      });
+    const uploaded = await uploadDocumentToGemini({
+      client,
+      document,
+      readDocument: args.readDocument,
+    });
+
+    if (!uploaded.uri || !uploaded.mimeType) {
+      throw new Error(`Gemini file upload did not return a usable URI for ${document.filename}.`);
     }
+
+    parts.push(createPartFromUri(uploaded.uri, uploaded.mimeType));
   }
 
-  const response = await client.responses.create({
-    model: "gpt-5.4-mini",
-    instructions: buildInstructions(args.preset),
-    text: {
-      format: {
-        type: "json_schema",
-        name: "bank_transaction_rows",
-        schema: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            rows: {
-              type: "array",
-              items: {
-                type: "object",
-                additionalProperties: false,
-                properties: {
-                  date: { type: "string" },
-                  description: { type: "string" },
-                  amount: { type: "number" },
-                  currency: { type: "string" },
-                  direction: { type: "string", enum: ["debit", "credit"] },
-                  balance: { type: ["number", "null"] },
-                  category: { type: "string" },
-                  counterparty: { type: ["string", "null"] },
-                  reference: { type: "string" },
-                  notes: { type: "string" },
-                  confidence: { type: "number" },
-                },
-                required: [
-                  "date",
-                  "description",
-                  "amount",
-                  "currency",
-                  "direction",
-                  "balance",
-                  "category",
-                  "counterparty",
-                  "reference",
-                  "notes",
-                  "confidence",
-                ],
-              },
-            },
-          },
-          required: ["rows"],
-        },
-      },
+  const response = await client.models.generateContent({
+    model: GEMINI_MODEL,
+    contents: createUserContent(parts),
+    config: {
+      responseMimeType: "application/json",
+      responseJsonSchema: RESPONSE_SCHEMA,
+      temperature: 0.1,
     },
-    input: [
-      {
-        role: "user",
-        content,
-      },
-    ],
   });
 
-  const raw = response.output_text;
+  const raw = response.text;
+  if (!raw) {
+    throw new Error("Gemini returned an empty response.");
+  }
   const parsed = JSON.parse(raw) as { rows: Array<Record<string, unknown>> };
   const rows = parsed.rows.map((row, index) =>
     normalizedTransactionRowSchema.parse({
@@ -203,7 +220,7 @@ async function runOpenAiExtraction(args: {
     rows,
     warnings: [],
     processingMetadata: {
-      provider: "openai",
+      provider: "gemini",
       processedAt: new Date().toISOString(),
       pageCount: args.documents.length,
       repairAttempted: false,
@@ -214,13 +231,13 @@ async function runOpenAiExtraction(args: {
 export function createExtractionProvider(): ExtractionProvider {
   return {
     async extractTransactions({ preset, documents, readDocument }) {
-      if (!process.env.OPENAI_API_KEY) {
+      if (!process.env.GEMINI_API_KEY) {
         return buildMockResult(documents);
       }
 
       try {
-        return await runOpenAiExtraction({
-          apiKey: process.env.OPENAI_API_KEY,
+        return await runGeminiExtraction({
+          apiKey: process.env.GEMINI_API_KEY,
           preset,
           documents,
           readDocument,
@@ -229,8 +246,8 @@ export function createExtractionProvider(): ExtractionProvider {
         const fallback = buildMockResult(documents);
         fallback.warnings.push(
           error instanceof Error
-            ? `OpenAI extraction failed; fell back to mock provider: ${error.message}`
-            : "OpenAI extraction failed; fell back to mock provider.",
+            ? `Gemini extraction failed; fell back to mock provider: ${error.message}`
+            : "Gemini extraction failed; fell back to mock provider.",
         );
         return fallback;
       }

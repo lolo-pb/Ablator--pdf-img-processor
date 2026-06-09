@@ -6,7 +6,7 @@ type PublicEnv = {
 };
 
 type ServerEnv = PublicEnv & {
-  OPENAI_API_KEY?: string;
+  GEMINI_API_KEY?: string;
 };
 
 function readPublicEnv(): PublicEnv {
@@ -21,7 +21,7 @@ function readPublicEnv(): PublicEnv {
 export function readServerEnv(): ServerEnv {
   return {
     ...readPublicEnv(),
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   };
 }
 
@@ -38,8 +38,8 @@ export function hasSupabasePublicEnv() {
   return Boolean(env.NEXT_PUBLIC_SUPABASE_URL && env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
-export function hasOpenAiEnv() {
-  return Boolean(process.env.OPENAI_API_KEY);
+export function hasGeminiEnv() {
+  return Boolean(process.env.GEMINI_API_KEY);
 }
 
 export function requireSupabasePublicEnv() {
