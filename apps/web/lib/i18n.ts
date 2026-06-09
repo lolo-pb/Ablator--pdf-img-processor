@@ -16,6 +16,7 @@ const dictionaries = {
       templates: "Templates",
       review: "Review",
       createTemplate: "Create template",
+      editTemplate: "Edit template",
       backToTemplates: "Back to templates",
       backToBusiness: "Back to business",
       backToUpload: "Back to upload",
@@ -43,6 +44,8 @@ const dictionaries = {
     templateForm: {
       title: "Create template",
       subtitle: "Define how this business should read documents and export rows.",
+      editTitle: "Edit template",
+      editSubtitle: "Update the template and save it as a new version.",
       name: "Template name",
       documentType: "Document type",
       columns: "Columns",
@@ -61,6 +64,7 @@ const dictionaries = {
       instructions: "Instructions",
       ignoreRules: "Ignore rules",
       submit: "Save template",
+      saveNewVersion: "Save new version",
     },
     templateDetail: {
       uploadTitle: "Upload files",
@@ -118,6 +122,7 @@ const dictionaries = {
       templates: "Plantillas",
       review: "Revision",
       createTemplate: "Crear plantilla",
+      editTemplate: "Editar plantilla",
       backToTemplates: "Volver a plantillas",
       backToBusiness: "Volver al negocio",
       backToUpload: "Volver a carga",
@@ -145,6 +150,8 @@ const dictionaries = {
     templateForm: {
       title: "Crear plantilla",
       subtitle: "Defini como este negocio debe leer documentos y exportar filas.",
+      editTitle: "Editar plantilla",
+      editSubtitle: "Actualiza la plantilla y guardala como una nueva version.",
       name: "Nombre de la plantilla",
       documentType: "Tipo de documento",
       columns: "Columnas",
@@ -163,6 +170,7 @@ const dictionaries = {
       instructions: "Instrucciones",
       ignoreRules: "Reglas para ignorar",
       submit: "Guardar plantilla",
+      saveNewVersion: "Guardar nueva version",
     },
     templateDetail: {
       uploadTitle: "Cargar archivos",

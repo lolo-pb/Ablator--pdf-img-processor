@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { SourceDocument } from "@bank/domain";
 import { processTemplateAction } from "../../../../actions";
 import { DashboardShell } from "../../../../components/dashboard-shell";
@@ -69,8 +70,13 @@ export default async function TemplateDetailPage({
         </article>
 
         <article className="focus-panel info-panel stack">
-          <div className="stack tight">
-            <span className="status-badge">{messages.templateDetail.templateInfo}</span>
+          <div className="template-info-header">
+            <div className="template-info-header__row">
+              <span className="status-badge">{messages.templateDetail.templateInfo}</span>
+              <Link className="button secondary template-info-header__action" href={`/businesses/${businessId}/templates/${templateId}/edit`}>
+                Edit
+              </Link>
+            </div>
             <h2>{messages.templateDetail.templateInfo}</h2>
           </div>
           <div className="info-block">

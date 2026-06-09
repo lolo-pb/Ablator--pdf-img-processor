@@ -57,9 +57,14 @@ export default async function BusinessPage({
                 <strong>{messages.business.updatedAt}</strong>
                 <span>{new Date(template.updatedAt).toLocaleDateString(locale)}</span>
               </div>
-              <Link className="button" href={`/businesses/${businessId}/templates/${template.id}`}>
-                {messages.business.openTemplate}
-              </Link>
+              <div className="template-card__actions">
+                <Link className="button secondary" href={`/businesses/${businessId}/templates/${template.id}/edit`}>
+                  {messages.nav.editTemplate}
+                </Link>
+                <Link className="button" href={`/businesses/${businessId}/templates/${template.id}`}>
+                  {messages.business.openTemplate}
+                </Link>
+              </div>
             </article>
           ))}
         </section>

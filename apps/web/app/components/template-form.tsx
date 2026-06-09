@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Preset } from "@bank/domain";
 import { useMemo, useState } from "react";
 import { createPresetAction } from "../actions";
 
@@ -15,6 +16,7 @@ type DraftColumn = {
 };
 
 type TemplateFormMessages = {
+  title: string;
   name: string;
   documentType: string;
   columns: string;
@@ -40,9 +42,11 @@ type TemplateFormProps = {
   businessId: string;
   cancelHref: string;
   messages: TemplateFormMessages;
+  initialPreset?: Preset;
+  submitAction?: (formData: FormData) => Promise<void>;
 };
 
-const initialColumns: DraftColumn[] = [
+const defaultColumns: DraftColumn[] = [
   { id: "date", key: "date", label: "Date", type: "date", required: true },
   { id: "description", key: "description", label: "Description", type: "custom", required: true },
   { id: "total", key: "total", label: "Total", type: "money", required: true },
@@ -65,8 +69,25 @@ function moveColumn(columns: DraftColumn[], index: number, direction: -1 | 1) {
   return next;
 }
 
-export function TemplateForm({ businessId, cancelHref, messages }: TemplateFormProps) {
-  const [columns, setColumns] = useState<DraftColumn[]>(initialColumns);
+function mapInitialColumns(preset?: Preset): DraftColumn[] {
+  if (!preset) return defaultColumns;
+  return preset.definition.columns.map((column, index) => ({
+    id: `${column.key}-${index}`,
+    key: column.key,
+    label: column.label,
+    type: column.type,
+    required: column.required,
+  }));
+}
+
+export function TemplateForm({
+  businessId,
+  cancelHref,
+  messages,
+  initialPreset,
+  submitAction = createPresetAction,
+}: TemplateFormProps) {
+  const [columns, setColumns] = useState<DraftColumn[]>(() => mapInitialColumns(initialPreset));
 
   const serializedColumns = useMemo(
     () =>
@@ -99,17 +120,17 @@ export function TemplateForm({ businessId, cancelHref, messages }: TemplateFormP
   }
 
   return (
-    <form action={createPresetAction} className="stack">
+    <form action={submitAction} className="stack">
       <input type="hidden" name="businessId" value={businessId} />
       <input type="hidden" name="columnsJson" value={serializedColumns} />
 
       <label>
         {messages.name}
-        <input name="name" defaultValue="Document Extractor" required />
+        <input name="name" defaultValue={initialPreset?.name ?? "Document Extractor"} required />
       </label>
       <label>
         {messages.documentType}
-        <input name="documentType" defaultValue="orders" required />
+        <input name="documentType" defaultValue={initialPreset?.documentType ?? "orders"} required />
       </label>
 
       <section className="stack">
@@ -202,7 +223,10 @@ export function TemplateForm({ businessId, cancelHref, messages }: TemplateFormP
         <textarea
           name="instructionText"
           rows={5}
-          defaultValue="Extract one row per visible record. Use the configured columns exactly and leave missing values blank."
+          defaultValue={
+            initialPreset?.definition.instructionText ??
+            "Extract one row per visible record. Use the configured columns exactly and leave missing values blank."
+          }
           required
         />
       </label>
@@ -211,7 +235,10 @@ export function TemplateForm({ businessId, cancelHref, messages }: TemplateFormP
         <textarea
           name="ignoreRules"
           rows={3}
-          defaultValue="Ignore headers, footers, logos, totals, and summary sections unless they are part of a requested row."
+          defaultValue={
+            initialPreset?.definition.ignoreRules.join("\n") ??
+            "Ignore headers, footers, logos, totals, and summary sections unless they are part of a requested row."
+          }
         />
       </label>
       <div className="row">

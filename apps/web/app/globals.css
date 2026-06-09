@@ -355,6 +355,16 @@ p,
   box-shadow: 0 14px 24px rgba(41, 82, 227, 0.24);
 }
 
+.template-card__actions {
+  margin-top: auto;
+  display: grid;
+  gap: 10px;
+}
+
+.template-card__actions .button {
+  width: 100%;
+}
+
 .card-topline {
   display: flex;
   justify-content: space-between;
@@ -691,6 +701,32 @@ label {
 
 .info-panel {
   align-content: start;
+}
+
+.template-info-header {
+  display: grid;
+  gap: 10px;
+}
+
+.template-info-header__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.template-info-header h2 {
+  margin: 0;
+}
+
+.template-info-header__action {
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+  flex: 0 0 auto;
 }
 
 .info-block {
