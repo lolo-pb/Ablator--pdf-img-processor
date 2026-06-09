@@ -19,12 +19,15 @@ type TemplateFormMessages = {
   title: string;
   name: string;
   documentType: string;
+  defaultName: string;
+  defaultDocumentType: string;
   columns: string;
   addColumn: string;
   columnLabel: string;
   columnKey: string;
   columnType: string;
   required: string;
+  actions: string;
   removeColumn: string;
   moveUp: string;
   moveDown: string;
@@ -33,7 +36,12 @@ type TemplateFormMessages = {
   typeMoney: string;
   typeCustom: string;
   instructions: string;
+  defaultInstructions: string;
   ignoreRules: string;
+  defaultIgnoreRules: string;
+  defaultDateLabel: string;
+  defaultDescriptionLabel: string;
+  defaultAmountLabel: string;
   submit: string;
   cancel: string;
 };
@@ -45,12 +53,6 @@ type TemplateFormProps = {
   initialPreset?: Preset;
   submitAction?: (formData: FormData) => Promise<void>;
 };
-
-const defaultColumns: DraftColumn[] = [
-  { id: "date", key: "date", label: "Date", type: "date", required: true },
-  { id: "description", key: "description", label: "Description", type: "custom", required: true },
-  { id: "total", key: "total", label: "Total", type: "money", required: true },
-];
 
 function toKey(label: string) {
   return label
@@ -69,8 +71,16 @@ function moveColumn(columns: DraftColumn[], index: number, direction: -1 | 1) {
   return next;
 }
 
-function mapInitialColumns(preset?: Preset): DraftColumn[] {
-  if (!preset) return defaultColumns;
+function getDefaultColumns(messages: TemplateFormMessages): DraftColumn[] {
+  return [
+    { id: "date", key: "date", label: messages.defaultDateLabel, type: "date", required: true },
+    { id: "description", key: "description", label: messages.defaultDescriptionLabel, type: "custom", required: true },
+    { id: "total", key: "total", label: messages.defaultAmountLabel, type: "money", required: true },
+  ];
+}
+
+function mapInitialColumns(preset: Preset | undefined, messages: TemplateFormMessages): DraftColumn[] {
+  if (!preset) return getDefaultColumns(messages);
   return preset.definition.columns.map((column, index) => ({
     id: `${column.key}-${index}`,
     key: column.key,
@@ -87,7 +97,7 @@ export function TemplateForm({
   initialPreset,
   submitAction = createPresetAction,
 }: TemplateFormProps) {
-  const [columns, setColumns] = useState<DraftColumn[]>(() => mapInitialColumns(initialPreset));
+  const [columns, setColumns] = useState<DraftColumn[]>(() => mapInitialColumns(initialPreset, messages));
 
   const serializedColumns = useMemo(
     () =>
@@ -127,11 +137,11 @@ export function TemplateForm({
       <section className="template-form__grid">
         <label className="template-form__field">
           {messages.name}
-          <input name="name" defaultValue={initialPreset?.name ?? "Document Extractor"} required />
+          <input name="name" defaultValue={initialPreset?.name ?? messages.defaultName} required />
         </label>
         <label className="template-form__field">
           {messages.documentType}
-          <input name="documentType" defaultValue={initialPreset?.documentType ?? "orders"} required />
+          <input name="documentType" defaultValue={initialPreset?.documentType ?? messages.defaultDocumentType} required />
         </label>
       </section>
 
@@ -151,7 +161,7 @@ export function TemplateForm({
                 <th>{messages.columnKey}</th>
                 <th>{messages.columnType}</th>
                 <th>{messages.required}</th>
-                <th>Actions</th>
+                <th>{messages.actions}</th>
               </tr>
             </thead>
             <tbody>
@@ -207,7 +217,7 @@ export function TemplateForm({
                         disabled={index === 0}
                         title={messages.moveUp}
                       >
-                        Up
+                        {messages.moveUp}
                       </button>
                       <button
                         type="button"
@@ -216,7 +226,7 @@ export function TemplateForm({
                         disabled={index === columns.length - 1}
                         title={messages.moveDown}
                       >
-                        Down
+                        {messages.moveDown}
                       </button>
                       <button
                         type="button"
@@ -241,7 +251,7 @@ export function TemplateForm({
           rows={5}
           defaultValue={
             initialPreset?.definition.instructionText ??
-            "Extract one row per visible record. Use the configured columns exactly and leave missing values blank."
+            messages.defaultInstructions
           }
           required
         />
@@ -253,7 +263,7 @@ export function TemplateForm({
           rows={3}
           defaultValue={
             initialPreset?.definition.ignoreRules.join("\n") ??
-            "Ignore headers, footers, logos, totals, and summary sections unless they are part of a requested row."
+            messages.defaultIgnoreRules
           }
         />
       </label>
