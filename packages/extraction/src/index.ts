@@ -49,7 +49,8 @@ function buildColumnInstructions(columns: OutputColumn[]) {
   return columns
     .map((column) => {
       const required = column.required ? "required" : "optional";
-      return `- ${column.key}: ${column.label}; type=${column.type}; ${required}`;
+      const hint = column.customHint ? `; hint=${column.customHint}` : "";
+      return `- ${column.key}: ${column.label}; type=${column.type}; ${required}${hint}`;
     })
     .join("\n");
 }

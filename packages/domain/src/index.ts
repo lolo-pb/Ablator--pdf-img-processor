@@ -41,6 +41,7 @@ export const outputColumnSchema = z.object({
     return value;
   }, outputColumnTypeSchema),
   required: z.boolean().default(false),
+  customHint: z.string().default(""),
 });
 export type OutputColumn = z.infer<typeof outputColumnSchema>;
 

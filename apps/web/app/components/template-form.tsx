@@ -9,10 +9,10 @@ type ColumnType = "date" | "number" | "money" | "custom";
 
 type DraftColumn = {
   id: string;
-  key: string;
   label: string;
   type: ColumnType;
   required: boolean;
+  customHint: string;
 };
 
 type TemplateFormMessages = {
@@ -24,8 +24,9 @@ type TemplateFormMessages = {
   columns: string;
   addColumn: string;
   columnLabel: string;
-  columnKey: string;
   columnType: string;
+  customText: string;
+  customTextPlaceholder: string;
   required: string;
   actions: string;
   removeColumn: string;
@@ -73,9 +74,9 @@ function moveColumn(columns: DraftColumn[], index: number, direction: -1 | 1) {
 
 function getDefaultColumns(messages: TemplateFormMessages): DraftColumn[] {
   return [
-    { id: "date", key: "date", label: messages.defaultDateLabel, type: "date", required: true },
-    { id: "description", key: "description", label: messages.defaultDescriptionLabel, type: "custom", required: true },
-    { id: "total", key: "total", label: messages.defaultAmountLabel, type: "money", required: true },
+    { id: "date", label: messages.defaultDateLabel, type: "date", required: true, customHint: "" },
+    { id: "description", label: messages.defaultDescriptionLabel, type: "custom", required: true, customHint: "" },
+    { id: "total", label: messages.defaultAmountLabel, type: "money", required: true, customHint: "" },
   ];
 }
 
@@ -83,10 +84,10 @@ function mapInitialColumns(preset: Preset | undefined, messages: TemplateFormMes
   if (!preset) return getDefaultColumns(messages);
   return preset.definition.columns.map((column, index) => ({
     id: `${column.key}-${index}`,
-    key: column.key,
     label: column.label,
     type: column.type,
     required: column.required,
+    customHint: column.customHint ?? "",
   }));
 }
 
@@ -102,18 +103,19 @@ export function TemplateForm({
   const serializedColumns = useMemo(
     () =>
       JSON.stringify(
-        columns.map(({ key, label, type, required }) => ({
-          key,
+        columns.map(({ label, type, required, customHint }) => ({
+          key: toKey(label),
           label,
           type,
           required,
+          customHint: type === "custom" ? customHint : "",
         })),
       ),
     [columns],
   );
-  const keys = columns.map((column) => column.key);
+  const keys = columns.map((column) => toKey(column.label));
   const hasDuplicateKeys = new Set(keys).size !== keys.length;
-  const hasInvalidColumns = columns.length === 0 || columns.some((column) => !column.key || !column.label) || hasDuplicateKeys;
+  const hasInvalidColumns = columns.length === 0 || columns.some((column) => !toKey(column.label) || !column.label) || hasDuplicateKeys;
 
   function updateColumn(id: string, patch: Partial<DraftColumn>) {
     setColumns((current) =>
@@ -125,7 +127,7 @@ export function TemplateForm({
     const id = `column-${Date.now()}`;
     setColumns((current) => [
       ...current,
-      { id, key: "", label: "", type: "custom", required: false },
+      { id, label: "", type: "custom", required: false, customHint: "" },
     ]);
   }
 
@@ -158,8 +160,8 @@ export function TemplateForm({
             <thead>
               <tr>
                 <th>{messages.columnLabel}</th>
-                <th>{messages.columnKey}</th>
                 <th>{messages.columnType}</th>
+                <th>{messages.customText}</th>
                 <th>{messages.required}</th>
                 <th>{messages.actions}</th>
               </tr>
@@ -171,21 +173,7 @@ export function TemplateForm({
                     <input
                       className="column-builder-table__input"
                       value={column.label}
-                      onChange={(event) => {
-                        const label = event.target.value;
-                        updateColumn(column.id, {
-                          label,
-                          key: column.key ? column.key : toKey(label),
-                        });
-                      }}
-                      required
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="column-builder-table__input"
-                      value={column.key}
-                      onChange={(event) => updateColumn(column.id, { key: toKey(event.target.value) })}
+                      onChange={(event) => updateColumn(column.id, { label: event.target.value })}
                       required
                     />
                   </td>
@@ -193,13 +181,30 @@ export function TemplateForm({
                     <select
                       className="column-builder-table__input"
                       value={column.type}
-                      onChange={(event) => updateColumn(column.id, { type: event.target.value as ColumnType })}
+                      onChange={(event) =>
+                        updateColumn(column.id, {
+                          type: event.target.value as ColumnType,
+                          customHint: event.target.value === "custom" ? column.customHint : "",
+                        })
+                      }
                     >
                       <option value="date">{messages.typeDate}</option>
                       <option value="number">{messages.typeNumber}</option>
                       <option value="money">{messages.typeMoney}</option>
                       <option value="custom">{messages.typeCustom}</option>
                     </select>
+                  </td>
+                  <td>
+                    {column.type === "custom" ? (
+                      <input
+                        className="column-builder-table__input"
+                        value={column.customHint}
+                        onChange={(event) => updateColumn(column.id, { customHint: event.target.value })}
+                        placeholder={messages.customTextPlaceholder}
+                      />
+                    ) : (
+                      <span className="column-builder-table__placeholder">-</span>
+                    )}
                   </td>
                   <td className="column-builder-table__required">
                     <input
