@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildWorkbookBuffer } from "./index";
-import type { ExportRequest, Preset, NormalizedTransactionRow } from "@bank/domain";
+import type { ExportRequest, Preset, NormalizedTemplateRow } from "@bank/domain";
 
 const preset: Preset = {
   id: "preset-1",
@@ -12,8 +12,8 @@ const preset: Preset = {
   definition: {
     columns: [
       { key: "date", label: "Date", type: "date", required: true },
-      { key: "description", label: "Description", type: "string", required: true },
-      { key: "amount", label: "Amount", type: "currency", required: true },
+      { key: "description", label: "Description", type: "custom", required: true },
+      { key: "amount", label: "Amount", type: "money", required: true },
     ],
     classificationCategories: [],
     ignoreRules: [],
@@ -28,21 +28,16 @@ const preset: Preset = {
   updatedAt: new Date().toISOString(),
 };
 
-const rows: NormalizedTransactionRow[] = [
+const rows: NormalizedTemplateRow[] = [
   {
     id: "row-1",
     sourcePage: 0,
-    date: "2026-06-03",
-    description: "Coffee",
-    amount: 4.5,
-    currency: "USD",
-    direction: "debit",
-    balance: null,
-    category: "Operations",
-    counterparty: null,
-    reference: "",
-    notes: "",
-    confidence: { overall: 0.8, fields: { amount: 0.8 } },
+    values: {
+      date: "2026-06-03",
+      description: "Coffee",
+      amount: 4.5,
+    },
+    confidence: 0.8,
     reviewStatus: "approved",
   },
 ];
@@ -50,7 +45,7 @@ const rows: NormalizedTransactionRow[] = [
 const request: ExportRequest = {
   jobId: "job-1",
   format: "xlsx",
-  selectedColumns: ["date", "description", "amount"],
+  selectedColumns: ["date", "description", "amount", "confidence"],
   workbookName: "Transactions",
 };
 

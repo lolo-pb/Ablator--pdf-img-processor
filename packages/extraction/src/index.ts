@@ -2,121 +2,143 @@ import { GoogleGenAI, createPartFromUri, createUserContent } from "@google/genai
 import {
   ExtractionProvider,
   extractionResultSchema,
+  normalizedTemplateRowSchema,
   type ExtractionResult,
-  normalizedTransactionRowSchema,
+  type OutputColumn,
   type Preset,
   type SourceDocument,
+  type TemplateCellValue,
 } from "@bank/domain";
 
-const mockDescriptions = [
-  "Coffee shop",
-  "Office supplies",
-  "Payroll transfer",
-  "Software subscription",
-  "Card payment",
-];
-
 const GEMINI_MODEL = "gemini-2.5-flash";
-const RESPONSE_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    rows: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          date: { type: "string" },
-          description: { type: "string" },
-          amount: { type: "number" },
-          currency: { type: "string" },
-          direction: { type: "string", enum: ["debit", "credit"] },
-          balance: { type: ["number", "null"] },
-          category: { type: "string" },
-          counterparty: { type: ["string", "null"] },
-          reference: { type: "string" },
-          notes: { type: "string" },
-          confidence: { type: "number" },
+
+function buildColumnSchema(column: OutputColumn) {
+  if (column.type === "number" || column.type === "money") {
+    return { type: ["number", "null"] };
+  }
+  return { type: ["string", "null"] };
+}
+
+function buildResponseSchema(preset: Preset) {
+  const rowProperties = Object.fromEntries(
+    preset.definition.columns.map((column) => [column.key, buildColumnSchema(column)]),
+  );
+
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      rows: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            ...rowProperties,
+            confidence: { type: "number", minimum: 0, maximum: 1 },
+          },
+          required: [...preset.definition.columns.map((column) => column.key), "confidence"],
         },
-        required: [
-          "date",
-          "description",
-          "amount",
-          "currency",
-          "direction",
-          "balance",
-          "category",
-          "counterparty",
-          "reference",
-          "notes",
-          "confidence",
-        ],
       },
     },
-  },
-  required: ["rows"],
-} as const;
+    required: ["rows"],
+  } as const;
+}
+
+function buildColumnInstructions(columns: OutputColumn[]) {
+  return columns
+    .map((column) => {
+      const required = column.required ? "required" : "optional";
+      return `- ${column.key}: ${column.label}; type=${column.type}; ${required}`;
+    })
+    .join("\n");
+}
 
 function buildInstructions(preset: Preset): string {
   return [
     "You extract structured rows from documents and images.",
     "Use the template context to decide what counts as a row and what each field means.",
+    "Use the exact schema keys provided by the template.",
+    "Return null when a value is missing or not visible.",
     "Return strict JSON only.",
     "Do not explain your reasoning.",
     `Document type: ${preset.documentType}.`,
     `Instruction text: ${preset.definition.instructionText}`,
     `Ignore rules: ${preset.definition.ignoreRules.join("; ") || "none"}`,
-    `Categories: ${preset.definition.classificationCategories.join(", ") || "Uncategorized"}`,
-    "For each row produce: date, description, amount, currency, direction, balance, category, counterparty, reference, notes, confidence.",
-  ].join(" ");
+    "Output columns:",
+    buildColumnInstructions(preset.definition.columns),
+  ].join("\n");
 }
 
-function toConfidenceObject(value: unknown) {
-  const overall =
-    typeof value === "number" && Number.isFinite(value)
-      ? Math.max(0, Math.min(1, value))
-      : 0.65;
-
-  return {
-    overall,
-    fields: {
-      date: overall,
-      description: overall,
-      amount: overall,
-      category: overall,
-    },
-  };
+function toConfidenceNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.min(1, value))
+    : 0.65;
 }
 
-function buildMockResult(documents: SourceDocument[]): ExtractionResult {
+function coerceCellValue(value: unknown, column: OutputColumn): TemplateCellValue {
+  if (value === null || value === undefined || value === "") return null;
+  if (column.type === "number" || column.type === "money") {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
+      const parsed = Number(value.replace(/[$,\s]/g, ""));
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+  return String(value);
+}
+
+function normalizeResponseRows(args: {
+  rows: Array<Record<string, unknown>>;
+  preset: Preset;
+  sourcePage?: number;
+}) {
+  return args.rows.map((row, index) => {
+    const values = Object.fromEntries(
+      args.preset.definition.columns.map((column) => [
+        column.key,
+        coerceCellValue(row[column.key], column),
+      ]),
+    );
+
+    return normalizedTemplateRowSchema.parse({
+      id: `row-${index}`,
+      sourcePage: args.sourcePage ?? 0,
+      values,
+      confidence: toConfidenceNumber(row.confidence),
+      reviewStatus: "pending",
+    });
+  });
+}
+
+function buildMockResult(preset: Preset, documents: SourceDocument[]): ExtractionResult {
   const rows = documents.flatMap((document, documentIndex) =>
-    Array.from({ length: 3 }, (_, rowIndex) =>
-      normalizedTransactionRowSchema.parse({
+    Array.from({ length: 3 }, (_, rowIndex) => {
+      const values = Object.fromEntries(
+        preset.definition.columns.map((column) => {
+          const rowNumber = rowIndex + 1;
+          if (column.type === "date") {
+            return [column.key, `2026-06-0${rowNumber}`];
+          }
+          if (column.type === "number") {
+            return [column.key, rowNumber * 3];
+          }
+          if (column.type === "money") {
+            return [column.key, Number((rowNumber * 24.35).toFixed(2))];
+          }
+          return [column.key, `${column.label} ${rowNumber} - ${document.filename}`];
+        }),
+      );
+
+      return normalizedTemplateRowSchema.parse({
         id: `${document.id}-row-${rowIndex}`,
         sourcePage: documentIndex,
-        date: `2026-06-0${rowIndex + 1}`,
-        description: `${mockDescriptions[rowIndex % mockDescriptions.length]} - ${document.filename}`,
-        amount: Number(((rowIndex + 1) * 24.35).toFixed(2)),
-        currency: "USD",
-        direction: rowIndex % 2 === 0 ? "debit" : "credit",
-        balance: Number((1000 - rowIndex * 24.35).toFixed(2)),
-        category: rowIndex % 2 === 0 ? "Operations" : "Income",
-        counterparty: rowIndex % 2 === 0 ? "Vendor" : "Client",
-        reference: `MOCK-${documentIndex}-${rowIndex}`,
-        notes: "Mock extraction used because GEMINI_API_KEY is not configured.",
-        confidence: {
-          overall: 0.72,
-          fields: {
-            date: 0.8,
-            description: 0.7,
-            amount: 0.75,
-            category: 0.65,
-          },
-        },
+        values,
+        confidence: 0.72,
         reviewStatus: "pending",
-      }),
-    ),
+      });
+    }),
   );
 
   return extractionResultSchema.parse({
@@ -162,10 +184,7 @@ async function runGeminiExtraction(args: {
 }): Promise<ExtractionResult> {
   const client = getGeminiClient(args.apiKey);
   const parts: Array<string | ReturnType<typeof createPartFromUri>> = [
-    [
-      "Extract financial transaction rows and answer in strict JSON matching the requested schema.",
-      buildInstructions(args.preset),
-    ].join("\n\n"),
+    buildInstructions(args.preset),
   ];
 
   for (const document of args.documents) {
@@ -187,7 +206,7 @@ async function runGeminiExtraction(args: {
     contents: createUserContent(parts),
     config: {
       responseMimeType: "application/json",
-      responseJsonSchema: RESPONSE_SCHEMA,
+      responseJsonSchema: buildResponseSchema(args.preset),
       temperature: 0.1,
     },
   });
@@ -196,25 +215,9 @@ async function runGeminiExtraction(args: {
   if (!raw) {
     throw new Error("Gemini returned an empty response.");
   }
+
   const parsed = JSON.parse(raw) as { rows: Array<Record<string, unknown>> };
-  const rows = parsed.rows.map((row, index) =>
-    normalizedTransactionRowSchema.parse({
-      id: `row-${index}`,
-      sourcePage: 0,
-      date: row.date,
-      description: row.description,
-      amount: row.amount,
-      currency: row.currency ?? "USD",
-      direction: row.direction,
-      balance: row.balance ?? null,
-      category: row.category ?? "Uncategorized",
-      counterparty: row.counterparty ?? null,
-      reference: row.reference ?? "",
-      notes: row.notes ?? "",
-      confidence: toConfidenceObject(row.confidence),
-      reviewStatus: "pending",
-    }),
-  );
+  const rows = normalizeResponseRows({ rows: parsed.rows, preset: args.preset });
 
   return extractionResultSchema.parse({
     rows,
@@ -232,7 +235,7 @@ export function createExtractionProvider(): ExtractionProvider {
   return {
     async extractTransactions({ preset, documents, readDocument }) {
       if (!process.env.GEMINI_API_KEY) {
-        return buildMockResult(documents);
+        return buildMockResult(preset, documents);
       }
 
       try {
@@ -243,7 +246,7 @@ export function createExtractionProvider(): ExtractionProvider {
           readDocument,
         });
       } catch (error) {
-        const fallback = buildMockResult(documents);
+        const fallback = buildMockResult(preset, documents);
         fallback.warnings.push(
           error instanceof Error
             ? `Gemini extraction failed; fell back to mock provider: ${error.message}`

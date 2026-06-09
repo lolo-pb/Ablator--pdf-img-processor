@@ -19,6 +19,25 @@ describe("presetDefinitionSchema", () => {
 
     expect(parsed.success).toBe(false);
   });
+
+  it("maps legacy column types into current template column types", () => {
+    const parsed = presetDefinitionSchema.parse({
+      columns: [
+        { key: "description", label: "Description", type: "string", required: true },
+        { key: "amount", label: "Amount", type: "currency", required: true },
+      ],
+      classificationCategories: [],
+      ignoreRules: [],
+      instructionText: "Extract rows",
+      dateParsingRules: [],
+      amountParsingRules: [],
+      directionRules: [],
+      payeeHints: [],
+    });
+
+    expect(parsed.columns[0].type).toBe("custom");
+    expect(parsed.columns[1].type).toBe("money");
+  });
 });
 
 describe("documentTypeSchema", () => {

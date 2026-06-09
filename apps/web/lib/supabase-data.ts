@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { extractedRowSchema, presetSchema } from "@bank/domain";
 import type {
   Business,
   ExtractedRow,
@@ -25,7 +26,7 @@ function mapBusiness(row: any): Business {
 }
 
 function mapPreset(row: any): Preset {
-  return {
+  return presetSchema.parse({
     id: row.id,
     businessId: row.business_id,
     name: row.name,
@@ -36,7 +37,7 @@ function mapPreset(row: any): Preset {
     exampleNotes: row.example_notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
+  });
 }
 
 function mapJob(row: any): ProcessingJob {
@@ -67,13 +68,13 @@ function mapDocument(row: any): SourceDocument {
 }
 
 function mapRow(row: any): ExtractedRow {
-  return {
+  return extractedRowSchema.parse({
     id: row.id,
     jobId: row.job_id,
     rowIndex: row.row_index,
     rawFields: row.raw_fields,
     normalized: row.normalized,
-  };
+  });
 }
 
 async function bootstrapIfNeeded() {

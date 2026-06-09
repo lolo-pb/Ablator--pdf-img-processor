@@ -273,12 +273,7 @@ export async function processJob(businessId: string, jobId: string) {
         id: row.id || randomUUID(),
         jobId,
         rowIndex: index,
-        rawFields: {
-          date: row.date,
-          description: row.description,
-          amount: row.amount,
-          category: row.category,
-        },
+        rawFields: row.values,
         normalized: row,
       }),
     );
@@ -320,12 +315,7 @@ export async function updateReviewRows(args: {
       ...row,
       normalized: {
         ...row.normalized,
-        date: patchRow.date,
-        description: patchRow.description,
-        amount: patchRow.amount,
-        category: patchRow.category,
-        direction: patchRow.direction,
-        notes: patchRow.notes,
+        values: patchRow.values,
         reviewStatus: patchRow.reviewStatus,
       },
     };
@@ -373,10 +363,9 @@ export async function savePresetVersion(args: {
   businessId: string;
   name: string;
   documentType: Preset["documentType"];
+  columns: Preset["definition"]["columns"];
   instructionText: string;
-  categories: string[];
   ignoreRules: string[];
-  exampleNotes: string;
 }) {
   await getBusinessWorkspace(args.businessId);
 
@@ -386,27 +375,16 @@ export async function savePresetVersion(args: {
     status: "active",
     documentType: args.documentType,
     definition: {
-      columns: [
-        { key: "date", label: "Date", type: "date", required: true },
-        { key: "description", label: "Description", type: "string", required: true },
-        { key: "amount", label: "Amount", type: "currency", required: true },
-        { key: "currency", label: "Currency", type: "string", required: true },
-        { key: "direction", label: "Direction", type: "enum", required: true },
-        { key: "balance", label: "Balance", type: "currency", required: false },
-        { key: "category", label: "Category", type: "enum", required: true },
-        { key: "counterparty", label: "Counterparty", type: "string", required: false },
-        { key: "reference", label: "Reference", type: "string", required: false },
-        { key: "notes", label: "Notes", type: "string", required: false },
-      ],
-      classificationCategories: args.categories,
+      columns: args.columns,
+      classificationCategories: [],
       ignoreRules: args.ignoreRules,
       instructionText: args.instructionText,
-      dateParsingRules: ["Normalize to YYYY-MM-DD"],
-      amountParsingRules: ["Return numeric decimal amounts only"],
-      directionRules: ["Outgoing values are debit", "Incoming values are credit"],
-      payeeHints: ["Use the clearest merchant or counterparty label available"],
+      dateParsingRules: [],
+      amountParsingRules: [],
+      directionRules: [],
+      payeeHints: [],
     },
-    exampleNotes: args.exampleNotes,
+    exampleNotes: "",
   });
 }
 

@@ -47,12 +47,6 @@ export default async function ReviewPage({
               reviewComplete: messages.review.reviewComplete,
               confidence: messages.review.confidence,
               status: messages.review.status,
-              notes: messages.review.notes,
-              date: messages.review.date,
-              description: messages.review.description,
-              amount: messages.review.amount,
-              direction: messages.review.direction,
-              category: messages.review.category,
               reviewSaved: messages.review.reviewSaved,
               reviewFailed: messages.review.reviewFailed,
             }}

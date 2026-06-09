@@ -1,9 +1,9 @@
 import ExcelJS from "exceljs";
-import { type ExportRequest, type Preset, type NormalizedTransactionRow } from "@bank/domain";
+import { type ExportRequest, type Preset, type NormalizedTemplateRow } from "@bank/domain";
 
 export async function buildWorkbookBuffer(args: {
   preset: Preset;
-  rows: NormalizedTransactionRow[];
+  rows: NormalizedTemplateRow[];
   request: ExportRequest;
 }): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
@@ -12,25 +12,21 @@ export async function buildWorkbookBuffer(args: {
   const selectedColumns = args.preset.definition.columns.filter((column) =>
     args.request.selectedColumns.includes(column.key),
   );
+  const includeConfidence = args.request.selectedColumns.includes("confidence");
 
-  worksheet.columns = selectedColumns.map((column) => ({
-    header: column.label,
-    key: column.key,
-    width: 22,
-  }));
+  worksheet.columns = [
+    ...selectedColumns.map((column) => ({
+      header: column.label,
+      key: column.key,
+      width: 22,
+    })),
+    ...(includeConfidence ? [{ header: "Confidence", key: "confidence", width: 14 }] : []),
+  ];
 
   for (const row of args.rows) {
     worksheet.addRow({
-      date: row.date,
-      description: row.description,
-      amount: row.amount,
-      currency: row.currency,
-      direction: row.direction,
-      balance: row.balance,
-      category: row.category,
-      counterparty: row.counterparty ?? "",
-      reference: row.reference,
-      notes: row.notes,
+      ...Object.fromEntries(selectedColumns.map((column) => [column.key, row.values[column.key] ?? ""])),
+      ...(includeConfidence ? { confidence: row.confidence } : {}),
     });
   }
 
@@ -39,4 +35,3 @@ export async function buildWorkbookBuffer(args: {
 
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
-

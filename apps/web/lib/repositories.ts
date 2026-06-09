@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { extractedRowSchema, presetSchema } from "@bank/domain";
 import type {
   Business,
   ExtractedRow,
@@ -53,11 +54,13 @@ export const presetStore: PresetStore = {
     const state = await readAppState();
     return state.presets
       .filter((preset) => preset.businessId === businessId)
-      .sort((a, b) => b.version - a.version);
+      .sort((a, b) => b.version - a.version)
+      .map((preset) => presetSchema.parse(preset));
   },
   async getById(businessId, presetId) {
     const state = await readAppState();
-    return state.presets.find((preset) => preset.businessId === businessId && preset.id === presetId) ?? null;
+    const preset = state.presets.find((entry) => entry.businessId === businessId && entry.id === presetId);
+    return preset ? presetSchema.parse(preset) : null;
   },
   async saveVersion(input) {
     return withAppState((state) => {
@@ -122,7 +125,10 @@ export const jobStore: JobStore = {
   },
   async listRows(jobId) {
     const state = await readAppState();
-    return state.rows.filter((row) => row.jobId === jobId).sort((a, b) => a.rowIndex - b.rowIndex);
+    return state.rows
+      .filter((row) => row.jobId === jobId)
+      .sort((a, b) => a.rowIndex - b.rowIndex)
+      .map((row) => extractedRowSchema.parse(row));
   },
   async replaceRows(jobId, rows) {
     await withAppState((state) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { NormalizedTransactionRow, Preset } from "@bank/domain";
+import type { NormalizedTemplateRow, OutputColumn, Preset, TemplateCellValue } from "@bank/domain";
 
 type Messages = {
   markReady: string;
@@ -10,12 +10,6 @@ type Messages = {
   reviewComplete: string;
   confidence: string;
   status: string;
-  notes: string;
-  date: string;
-  description: string;
-  amount: string;
-  direction: string;
-  category: string;
   reviewSaved: string;
   reviewFailed: string;
 };
@@ -24,35 +18,48 @@ type ReviewClientProps = {
   businessId: string;
   jobId: string;
   preset: Preset;
-  initialRows: NormalizedTransactionRow[];
+  initialRows: NormalizedTemplateRow[];
   initialReviewCompleted: boolean;
   messages: Messages;
 };
 
 type EditableRow = {
   id: string;
-  date: string;
-  description: string;
-  amount: number;
-  category: string;
-  direction: "debit" | "credit";
-  notes: string;
+  values: Record<string, TemplateCellValue>;
   reviewStatus: "pending" | "edited" | "approved";
   confidence: number;
 };
 
-function mapRows(rows: NormalizedTransactionRow[]): EditableRow[] {
+function mapRows(rows: NormalizedTemplateRow[]): EditableRow[] {
   return rows.map((row) => ({
     id: row.id,
-    date: row.date,
-    description: row.description,
-    amount: row.amount,
-    category: row.category,
-    direction: row.direction,
-    notes: row.notes,
+    values: row.values,
     reviewStatus: row.reviewStatus,
-    confidence: row.confidence.overall,
+    confidence: row.confidence,
   }));
+}
+
+function parseValue(value: string, column: OutputColumn): TemplateCellValue {
+  if (value === "") return null;
+  if (column.type === "number" || column.type === "money") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return value;
+}
+
+function renderValue(value: TemplateCellValue) {
+  return value === null ? "" : String(value);
+}
+
+function inputType(column: OutputColumn) {
+  if (column.type === "date") return "date";
+  if (column.type === "number" || column.type === "money") return "number";
+  return "text";
+}
+
+function inputStep(column: OutputColumn) {
+  return column.type === "money" ? "0.01" : undefined;
 }
 
 export function ReviewClient(props: ReviewClientProps) {
@@ -61,16 +68,25 @@ export function ReviewClient(props: ReviewClientProps) {
   const [isReady, setIsReady] = useState(props.initialReviewCompleted);
   const [isPending, startTransition] = useTransition();
 
-  function updateRow(id: string, field: keyof EditableRow, value: string) {
+  function updateValue(id: string, column: OutputColumn, value: string) {
     setRows((current) =>
       current.map((row) =>
         row.id === id
           ? {
               ...row,
-              [field]: field === "amount" ? Number(value) : value,
+              values: {
+                ...row.values,
+                [column.key]: parseValue(value, column),
+              },
             }
           : row,
       ),
+    );
+  }
+
+  function updateStatus(id: string, reviewStatus: EditableRow["reviewStatus"]) {
+    setRows((current) =>
+      current.map((row) => (row.id === id ? { ...row, reviewStatus } : row)),
     );
   }
 
@@ -83,7 +99,7 @@ export function ReviewClient(props: ReviewClientProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          rows,
+          rows: rows.map(({ id, values, reviewStatus }) => ({ id, values, reviewStatus })),
           approvalState,
         }),
       });
@@ -99,8 +115,9 @@ export function ReviewClient(props: ReviewClientProps) {
     });
   }
 
+  const exportColumns = [...props.preset.definition.columns.map((column) => column.key), "confidence"];
   const exportUrl = `/api/businesses/${props.businessId}/jobs/${props.jobId}/export?columns=${encodeURIComponent(
-    props.preset.definition.columns.map((column) => column.key).join(","),
+    exportColumns.join(","),
   )}&workbookName=${encodeURIComponent(props.preset.name.replace(/\s+/g, " "))}`;
 
   return (
@@ -126,12 +143,9 @@ export function ReviewClient(props: ReviewClientProps) {
         <table>
           <thead>
             <tr>
-              <th>{props.messages.date}</th>
-              <th>{props.messages.description}</th>
-              <th>{props.messages.amount}</th>
-              <th>{props.messages.direction}</th>
-              <th>{props.messages.category}</th>
-              <th>{props.messages.notes}</th>
+              {props.preset.definition.columns.map((column) => (
+                <th key={column.key}>{column.label}</th>
+              ))}
               <th>{props.messages.confidence}</th>
               <th>{props.messages.status}</th>
             </tr>
@@ -139,36 +153,19 @@ export function ReviewClient(props: ReviewClientProps) {
           <tbody>
             {rows.map((row) => (
               <tr key={row.id}>
-                <td>
-                  <input value={row.date} onChange={(event) => updateRow(row.id, "date", event.target.value)} />
-                </td>
-                <td>
-                  <input value={row.description} onChange={(event) => updateRow(row.id, "description", event.target.value)} />
-                </td>
-                <td>
-                  <input type="number" step="0.01" value={row.amount} onChange={(event) => updateRow(row.id, "amount", event.target.value)} />
-                </td>
-                <td>
-                  <select value={row.direction} onChange={(event) => updateRow(row.id, "direction", event.target.value)}>
-                    <option value="debit">debit</option>
-                    <option value="credit">credit</option>
-                  </select>
-                </td>
-                <td>
-                  <select value={row.category} onChange={(event) => updateRow(row.id, "category", event.target.value)}>
-                    {props.preset.definition.classificationCategories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <input value={row.notes} onChange={(event) => updateRow(row.id, "notes", event.target.value)} />
-                </td>
+                {props.preset.definition.columns.map((column) => (
+                  <td key={column.key}>
+                    <input
+                      type={inputType(column)}
+                      step={inputStep(column)}
+                      value={renderValue(row.values[column.key] ?? null)}
+                      onChange={(event) => updateValue(row.id, column, event.target.value)}
+                    />
+                  </td>
+                ))}
                 <td>{Math.round(row.confidence * 100)}%</td>
                 <td>
-                  <select value={row.reviewStatus} onChange={(event) => updateRow(row.id, "reviewStatus", event.target.value)}>
+                  <select value={row.reviewStatus} onChange={(event) => updateStatus(row.id, event.target.value as EditableRow["reviewStatus"])}>
                     <option value="pending">pending</option>
                     <option value="edited">edited</option>
                     <option value="approved">approved</option>

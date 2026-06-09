@@ -435,7 +435,8 @@ button.secondary {
 }
 
 .button.is-disabled,
-.button[aria-disabled="true"] {
+.button[aria-disabled="true"],
+button:disabled {
   pointer-events: none;
   opacity: 0.5;
 }
@@ -447,6 +448,41 @@ button.secondary {
 
 .form-panel {
   max-width: 760px;
+}
+
+.column-builder {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #f7faff;
+}
+
+.column-builder__row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(130px, 0.8fr) minmax(130px, 0.7fr) auto auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: white;
+}
+
+.inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  font-weight: 700;
+}
+
+.inline-check input {
+  width: auto;
+}
+
+.icon-button {
+  min-width: 58px;
+  padding-inline: 12px;
 }
 
 .template-layout {
@@ -832,6 +868,10 @@ tbody tr:last-child td {
   .review-layout {
     grid-template-columns: 1fr;
   }
+
+  .column-builder__row {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 720px) {
@@ -862,6 +902,10 @@ tbody tr:last-child td {
 
   .template-card {
     min-height: 0;
+  }
+
+  .column-builder__row {
+    grid-template-columns: 1fr;
   }
 
   table {

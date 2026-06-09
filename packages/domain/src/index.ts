@@ -29,10 +29,17 @@ export const confidenceSchema = z.object({
 });
 export type Confidence = z.infer<typeof confidenceSchema>;
 
+export const outputColumnTypeSchema = z.enum(["date", "number", "money", "custom"]);
+export type OutputColumnType = z.infer<typeof outputColumnTypeSchema>;
+
 export const outputColumnSchema = z.object({
   key: z.string().min(1),
   label: z.string().min(1),
-  type: z.enum(["string", "number", "date", "currency", "enum"]),
+  type: z.preprocess((value) => {
+    if (value === "currency") return "money";
+    if (value === "string" || value === "enum") return "custom";
+    return value;
+  }, outputColumnTypeSchema),
   required: z.boolean().default(false),
 });
 export type OutputColumn = z.infer<typeof outputColumnSchema>;
@@ -89,26 +96,67 @@ export const presetSchema = z.object({
 });
 export type Preset = z.infer<typeof presetSchema>;
 
-export const normalizedTransactionRowSchema = z.object({
+export const templateCellValueSchema = z.union([z.string(), z.number(), z.null()]);
+export type TemplateCellValue = z.infer<typeof templateCellValueSchema>;
+
+function legacyConfidenceToNumber(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.min(1, value));
+  }
+  if (
+    value &&
+    typeof value === "object" &&
+    "overall" in value &&
+    typeof (value as { overall?: unknown }).overall === "number"
+  ) {
+    return Math.max(0, Math.min(1, (value as { overall: number }).overall));
+  }
+  return 0.65;
+}
+
+function coerceTemplateValue(value: unknown): TemplateCellValue {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") return value;
+  return String(value);
+}
+
+function normalizeTemplateRowInput(value: unknown) {
+  if (!value || typeof value !== "object") return value;
+  const input = value as Record<string, unknown>;
+  if ("values" in input && input.values && typeof input.values === "object") {
+    return {
+      ...input,
+      confidence: legacyConfidenceToNumber(input.confidence),
+    };
+  }
+
+  const values: Record<string, TemplateCellValue> = {};
+  for (const [key, entry] of Object.entries(input)) {
+    if (["id", "sourcePage", "confidence", "reviewStatus"].includes(key)) continue;
+    values[key] = coerceTemplateValue(entry);
+  }
+
+  return {
+    id: input.id,
+    sourcePage: input.sourcePage,
+    values,
+    confidence: legacyConfidenceToNumber(input.confidence),
+    reviewStatus: input.reviewStatus,
+  };
+}
+
+export const normalizedTemplateRowSchema = z.preprocess(normalizeTemplateRowInput, z.object({
   id: z.string().min(1),
   sourcePage: z.number().int().nonnegative(),
-  date: z.string().default(""),
-  description: z.string().default(""),
-  amount: z.number(),
-  currency: z.string().default("USD"),
-  direction: z.enum(["debit", "credit"]),
-  balance: z.number().nullable().default(null),
-  category: z.string().default("Uncategorized"),
-  counterparty: z.string().nullable().default(null),
-  reference: z.string().default(""),
-  notes: z.string().default(""),
-  confidence: confidenceSchema,
+  values: z.record(z.string(), templateCellValueSchema),
+  confidence: z.number().min(0).max(1),
   reviewStatus: rowReviewStatusSchema.default("pending"),
-});
-export type NormalizedTransactionRow = z.infer<typeof normalizedTransactionRowSchema>;
+}));
+export type NormalizedTemplateRow = z.infer<typeof normalizedTemplateRowSchema>;
 
 export const extractionResultSchema = z.object({
-  rows: z.array(normalizedTransactionRowSchema),
+  rows: z.array(normalizedTemplateRowSchema),
   warnings: z.array(z.string()).default([]),
   processingMetadata: z.object({
     provider: z.string(),
@@ -149,7 +197,7 @@ export const extractedRowSchema = z.object({
   jobId: z.string().min(1),
   rowIndex: z.number().int().nonnegative(),
   rawFields: z.record(z.string(), z.unknown()),
-  normalized: normalizedTransactionRowSchema,
+  normalized: normalizedTemplateRowSchema,
 });
 export type ExtractedRow = z.infer<typeof extractedRowSchema>;
 
@@ -203,12 +251,7 @@ export const reviewPatchSchema = z.object({
   rows: z.array(
     z.object({
       id: z.string().min(1),
-      date: z.string(),
-      description: z.string(),
-      amount: z.number(),
-      category: z.string(),
-      direction: z.enum(["debit", "credit"]),
-      notes: z.string().default(""),
+      values: z.record(z.string(), templateCellValueSchema),
       reviewStatus: rowReviewStatusSchema,
     }),
   ),

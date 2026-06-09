@@ -78,8 +78,8 @@ export default async function TemplateDetailPage({
             <span>{data.preset.documentType}</span>
           </div>
           <div className="info-block">
-            <strong>{messages.business.categories}</strong>
-            <span>{data.preset.definition.classificationCategories.join(", ")}</span>
+            <strong>{messages.business.columns}</strong>
+            <span>{data.preset.definition.columns.map((column) => column.label).join(", ")}</span>
           </div>
           <div className="info-block">
             <strong>{messages.templateForm.instructions}</strong>

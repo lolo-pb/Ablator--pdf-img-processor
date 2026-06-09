@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { outputColumnSchema } from "@bank/domain";
 import {
   createOrReplaceActiveBatch,
   getReviewRoute,
@@ -17,16 +18,23 @@ function splitLines(value: FormDataEntryValue | null): string[] {
     .filter(Boolean);
 }
 
+function parseColumns(value: FormDataEntryValue | null) {
+  const raw = typeof value === "string" && value.length > 0 ? JSON.parse(value) : [];
+  if (!Array.isArray(raw)) {
+    throw new Error("Template columns must be an array.");
+  }
+  return raw.map((column) => outputColumnSchema.parse(column));
+}
+
 export async function createPresetAction(formData: FormData) {
   const businessId = String(formData.get("businessId"));
   const preset = await savePresetVersion({
     businessId,
     name: String(formData.get("name")),
     documentType: String(formData.get("documentType")),
+    columns: parseColumns(formData.get("columnsJson")),
     instructionText: String(formData.get("instructionText")),
-    categories: splitLines(formData.get("categories")),
     ignoreRules: splitLines(formData.get("ignoreRules")),
-    exampleNotes: String(formData.get("exampleNotes")),
   });
 
   revalidatePath(`/businesses/${businessId}`);

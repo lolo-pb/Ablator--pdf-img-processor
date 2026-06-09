@@ -50,8 +50,8 @@ export default async function BusinessPage({
                 <p>{template.documentType}</p>
               </div>
               <div className="template-meta">
-                <strong>{messages.business.categories}</strong>
-                <span>{template.definition.classificationCategories.join(", ")}</span>
+                <strong>{messages.business.columns}</strong>
+                <span>{template.definition.columns.map((column) => column.label).join(", ")}</span>
               </div>
               <div className="template-meta">
                 <strong>{messages.business.updatedAt}</strong>
