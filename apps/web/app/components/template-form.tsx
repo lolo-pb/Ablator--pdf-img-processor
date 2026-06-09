@@ -120,105 +120,121 @@ export function TemplateForm({
   }
 
   return (
-    <form action={submitAction} className="stack">
+    <form action={submitAction} className="stack template-form">
       <input type="hidden" name="businessId" value={businessId} />
       <input type="hidden" name="columnsJson" value={serializedColumns} />
 
-      <label>
-        {messages.name}
-        <input name="name" defaultValue={initialPreset?.name ?? "Document Extractor"} required />
-      </label>
-      <label>
-        {messages.documentType}
-        <input name="documentType" defaultValue={initialPreset?.documentType ?? "orders"} required />
-      </label>
+      <section className="template-form__grid">
+        <label className="template-form__field">
+          {messages.name}
+          <input name="name" defaultValue={initialPreset?.name ?? "Document Extractor"} required />
+        </label>
+        <label className="template-form__field">
+          {messages.documentType}
+          <input name="documentType" defaultValue={initialPreset?.documentType ?? "orders"} required />
+        </label>
+      </section>
 
       <section className="stack">
-        <div className="row" style={{ justifyContent: "space-between" }}>
+        <div className="template-form__section-header">
           <h2>{messages.columns}</h2>
           <button type="button" className="secondary" onClick={addColumn}>
             {messages.addColumn}
           </button>
         </div>
 
-        <div className="column-builder stack">
-          {columns.map((column, index) => (
-            <div className="column-builder__row" key={column.id}>
-              <label>
-                {messages.columnLabel}
-                <input
-                  value={column.label}
-                  onChange={(event) => {
-                    const label = event.target.value;
-                    updateColumn(column.id, {
-                      label,
-                      key: column.key ? column.key : toKey(label),
-                    });
-                  }}
-                  required
-                />
-              </label>
-              <label>
-                {messages.columnKey}
-                <input
-                  value={column.key}
-                  onChange={(event) => updateColumn(column.id, { key: toKey(event.target.value) })}
-                  required
-                />
-              </label>
-              <label>
-                {messages.columnType}
-                <select
-                  value={column.type}
-                  onChange={(event) => updateColumn(column.id, { type: event.target.value as ColumnType })}
-                >
-                  <option value="date">{messages.typeDate}</option>
-                  <option value="number">{messages.typeNumber}</option>
-                  <option value="money">{messages.typeMoney}</option>
-                  <option value="custom">{messages.typeCustom}</option>
-                </select>
-              </label>
-              <label className="inline-check">
-                <input
-                  type="checkbox"
-                  checked={column.required}
-                  onChange={(event) => updateColumn(column.id, { required: event.target.checked })}
-                />
-                {messages.required}
-              </label>
-              <div className="row">
-                <button
-                  type="button"
-                  className="secondary icon-button"
-                  onClick={() => setColumns((current) => moveColumn(current, index, -1))}
-                  disabled={index === 0}
-                  title={messages.moveUp}
-                >
-                  Up
-                </button>
-                <button
-                  type="button"
-                  className="secondary icon-button"
-                  onClick={() => setColumns((current) => moveColumn(current, index, 1))}
-                  disabled={index === columns.length - 1}
-                  title={messages.moveDown}
-                >
-                  Down
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => setColumns((current) => current.filter((entry) => entry.id !== column.id))}
-                >
-                  {messages.removeColumn}
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="table-wrap column-builder-table-wrap">
+          <table className="column-builder-table">
+            <thead>
+              <tr>
+                <th>{messages.columnLabel}</th>
+                <th>{messages.columnKey}</th>
+                <th>{messages.columnType}</th>
+                <th>{messages.required}</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {columns.map((column, index) => (
+                <tr key={column.id}>
+                  <td>
+                    <input
+                      className="column-builder-table__input"
+                      value={column.label}
+                      onChange={(event) => {
+                        const label = event.target.value;
+                        updateColumn(column.id, {
+                          label,
+                          key: column.key ? column.key : toKey(label),
+                        });
+                      }}
+                      required
+                    />
+                  </td>
+                  <td>
+                    <input
+                      className="column-builder-table__input"
+                      value={column.key}
+                      onChange={(event) => updateColumn(column.id, { key: toKey(event.target.value) })}
+                      required
+                    />
+                  </td>
+                  <td>
+                    <select
+                      className="column-builder-table__input"
+                      value={column.type}
+                      onChange={(event) => updateColumn(column.id, { type: event.target.value as ColumnType })}
+                    >
+                      <option value="date">{messages.typeDate}</option>
+                      <option value="number">{messages.typeNumber}</option>
+                      <option value="money">{messages.typeMoney}</option>
+                      <option value="custom">{messages.typeCustom}</option>
+                    </select>
+                  </td>
+                  <td className="column-builder-table__required">
+                    <input
+                      type="checkbox"
+                      checked={column.required}
+                      onChange={(event) => updateColumn(column.id, { required: event.target.checked })}
+                    />
+                  </td>
+                  <td>
+                    <div className="column-builder-table__actions">
+                      <button
+                        type="button"
+                        className="secondary icon-button"
+                        onClick={() => setColumns((current) => moveColumn(current, index, -1))}
+                        disabled={index === 0}
+                        title={messages.moveUp}
+                      >
+                        Up
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary icon-button"
+                        onClick={() => setColumns((current) => moveColumn(current, index, 1))}
+                        disabled={index === columns.length - 1}
+                        title={messages.moveDown}
+                      >
+                        Down
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => setColumns((current) => current.filter((entry) => entry.id !== column.id))}
+                      >
+                        {messages.removeColumn}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
-      <label>
+      <label className="template-form__field">
         {messages.instructions}
         <textarea
           name="instructionText"
@@ -230,7 +246,7 @@ export function TemplateForm({
           required
         />
       </label>
-      <label>
+      <label className="template-form__field">
         {messages.ignoreRules}
         <textarea
           name="ignoreRules"

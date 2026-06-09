@@ -1,6 +1,6 @@
-import { TemplateEditorPage } from "../../../../../../components/template-editor-page";
-import { getLocale, getMessages } from "../../../../../../../lib/i18n";
-import { getTemplateDetailData } from "../../../../../../../lib/services";
+import { TemplateEditorPage } from "../../../../../components/template-editor-page";
+import { getLocale, getMessages } from "../../../../../../lib/i18n";
+import { getTemplateDetailData } from "../../../../../../lib/services";
 
 export default async function EditTemplatePage({
   params,

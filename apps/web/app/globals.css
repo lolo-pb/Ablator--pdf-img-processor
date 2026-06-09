@@ -457,25 +457,101 @@ button:disabled {
 }
 
 .form-panel {
-  max-width: 760px;
+  width: 100%;
+  max-width: none;
 }
 
-.column-builder {
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: #f7faff;
+.template-form {
+  gap: 16px;
 }
 
-.column-builder__row {
+.template-form__grid {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(130px, 0.8fr) minmax(130px, 0.7fr) auto auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  align-items: end;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: white;
+}
+
+.template-form__field {
+  min-width: 0;
+}
+
+.template-form__section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.column-builder-table-wrap {
+  border-radius: 20px;
+}
+
+.column-builder-table {
+  width: 100%;
+  min-width: 940px;
+  border-collapse: collapse;
+}
+
+.column-builder-table th,
+.column-builder-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.column-builder-table thead th {
+  background: #f0f5ff;
+  color: var(--primary-strong);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.column-builder-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.column-builder-table tbody tr:nth-child(even) {
+  background: #fbfcff;
+}
+
+.column-builder-table__input {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  line-height: 1.2;
+  border-color: #cdd8f6;
+  box-shadow: none;
+}
+
+.column-builder-table__required {
+  width: 92px;
+  text-align: center;
+}
+
+.column-builder-table__required input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+
+.column-builder-table__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.column-builder-table__actions .button,
+.column-builder-table__actions button {
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  box-shadow: none;
 }
 
 .inline-check {
@@ -996,8 +1072,8 @@ label {
     justify-content: start;
   }
 
-  .column-builder__row {
-    grid-template-columns: 1fr 1fr;
+  .template-form__grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1027,16 +1103,16 @@ label {
     min-width: 720px;
   }
 
+  .column-builder-table {
+    min-width: 720px;
+  }
+
   .template-grid {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   }
 
   .template-card {
     min-height: 0;
-  }
-
-  .column-builder__row {
-    grid-template-columns: 1fr;
   }
 
   table {
