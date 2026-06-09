@@ -42,11 +42,12 @@ export default async function ReviewPage({
             initialReviewCompleted={Boolean(data.job.reviewCompletedAt)}
             messages={{
               title: messages.review.title,
+              save: messages.review.save,
               markReady: messages.review.markReady,
               export: messages.review.export,
               reviewComplete: messages.review.reviewComplete,
               confidence: messages.review.confidence,
-              status: messages.review.status,
+              viewed: messages.review.viewed,
               reviewSaved: messages.review.reviewSaved,
               reviewFailed: messages.review.reviewFailed,
             }}

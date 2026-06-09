@@ -4,12 +4,13 @@ import { useState, useTransition } from "react";
 import type { NormalizedTemplateRow, OutputColumn, Preset, TemplateCellValue } from "@bank/domain";
 
 type Messages = {
+  save: string;
   markReady: string;
   export: string;
   title: string;
   reviewComplete: string;
   confidence: string;
-  status: string;
+  viewed: string;
   reviewSaved: string;
   reviewFailed: string;
 };
@@ -54,12 +55,17 @@ function renderValue(value: TemplateCellValue) {
 
 function inputType(column: OutputColumn) {
   if (column.type === "date") return "date";
-  if (column.type === "number" || column.type === "money") return "number";
+  if (column.type === "number" || column.type === "money") return "text";
   return "text";
 }
 
 function inputStep(column: OutputColumn) {
   return column.type === "money" ? "0.01" : undefined;
+}
+
+function inputMode(column: OutputColumn) {
+  if (column.type === "number" || column.type === "money") return "decimal";
+  return undefined;
 }
 
 export function ReviewClient(props: ReviewClientProps) {
@@ -74,6 +80,7 @@ export function ReviewClient(props: ReviewClientProps) {
         row.id === id
           ? {
               ...row,
+              reviewStatus: "edited",
               values: {
                 ...row.values,
                 [column.key]: parseValue(value, column),
@@ -122,12 +129,18 @@ export function ReviewClient(props: ReviewClientProps) {
 
   return (
     <div className="focus-panel review-panel stack">
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <div className="stack tight">
-          <h2>{props.messages.title}</h2>
-          {message ? <p className="muted">{message}</p> : null}
+      <div className="review-toolbar">
+        <div className="stack tight review-toolbar__copy">
+          <div className="row review-toolbar__meta">
+            <span className="status-badge">{rows.length}</span>
+            {isReady ? <span className="alert-chip">{props.messages.reviewComplete}</span> : null}
+          </div>
+          {message ? <p className="muted review-toolbar__message">{message}</p> : null}
         </div>
-        <div className="row">
+        <div className="row review-toolbar__actions">
+          <button type="button" className="secondary" onClick={() => save("in_progress")} disabled={isPending}>
+            {props.messages.save}
+          </button>
           <button type="button" onClick={() => save("ready_for_export")} disabled={isPending}>
             {props.messages.markReady}
           </button>
@@ -137,17 +150,15 @@ export function ReviewClient(props: ReviewClientProps) {
         </div>
       </div>
 
-      {isReady ? <div className="alert-chip">{props.messages.reviewComplete}</div> : null}
-
       <div className="table-wrap">
-        <table>
+        <table className="review-table">
           <thead>
             <tr>
               {props.preset.definition.columns.map((column) => (
                 <th key={column.key}>{column.label}</th>
               ))}
               <th>{props.messages.confidence}</th>
-              <th>{props.messages.status}</th>
+              <th>{props.messages.viewed}</th>
             </tr>
           </thead>
           <tbody>
@@ -156,20 +167,24 @@ export function ReviewClient(props: ReviewClientProps) {
                 {props.preset.definition.columns.map((column) => (
                   <td key={column.key}>
                     <input
+                      className="review-table__input"
                       type={inputType(column)}
+                      inputMode={inputMode(column)}
                       step={inputStep(column)}
                       value={renderValue(row.values[column.key] ?? null)}
                       onChange={(event) => updateValue(row.id, column, event.target.value)}
                     />
                   </td>
                 ))}
-                <td>{Math.round(row.confidence * 100)}%</td>
-                <td>
-                  <select value={row.reviewStatus} onChange={(event) => updateStatus(row.id, event.target.value as EditableRow["reviewStatus"])}>
-                    <option value="pending">pending</option>
-                    <option value="edited">edited</option>
-                    <option value="approved">approved</option>
-                  </select>
+                <td className="review-table__confidence">{Math.round(row.confidence * 100)}%</td>
+                <td className="review-table__status">
+                  <label className="review-table__checkbox">
+                    <input
+                      type="checkbox"
+                      checked={row.reviewStatus === "approved"}
+                      onChange={(event) => updateStatus(row.id, event.target.checked ? "approved" : "pending")}
+                    />
+                  </label>
                 </td>
               </tr>
             ))}

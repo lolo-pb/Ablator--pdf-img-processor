@@ -755,10 +755,35 @@ label {
 
 .review-panel {
   min-width: 0;
+  gap: 16px;
 }
 
 .review-sidebar {
   min-width: 0;
+}
+
+.review-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.review-toolbar__copy {
+  min-width: 0;
+}
+
+.review-toolbar__meta {
+  gap: 8px;
+}
+
+.review-toolbar__message {
+  font-size: 0.92rem;
+}
+
+.review-toolbar__actions {
+  justify-content: flex-end;
 }
 
 .review-sidebar__title {
@@ -826,30 +851,92 @@ label {
   background: white;
 }
 
-table {
+.review-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 760px;
+  min-width: 920px;
 }
 
-th,
-td {
-  padding: 12px;
+.review-table th,
+.review-table td {
+  padding: 10px 12px;
   text-align: left;
   border-bottom: 1px solid var(--line);
-  vertical-align: top;
+  vertical-align: middle;
 }
 
-thead th {
+.review-table thead th {
   background: #f0f5ff;
   color: var(--primary-strong);
-  font-size: 0.86rem;
+  font-size: 0.74rem;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
-tbody tr:last-child td {
+.review-table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+.review-table tbody tr:nth-child(even) {
+  background: #fbfcff;
+}
+
+.review-table__input {
+  min-width: 140px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  line-height: 1.2;
+  border-color: #cdd8f6;
+  box-shadow: none;
+}
+
+.review-table__input[type="date"] {
+  min-width: 132px;
+  width: 132px;
+  padding-right: 6px;
+}
+
+.review-table__input:focus {
+  outline: 2px solid rgba(41, 82, 227, 0.14);
+  border-color: #8ea9f4;
+}
+
+.review-table__confidence {
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-table__status {
+  width: 88px;
+  text-align: center;
+}
+
+.review-table__checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.review-table__checkbox input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.review-table__input::-webkit-outer-spin-button,
+.review-table__input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.review-table__input[type="number"] {
+  -moz-appearance: textfield;
 }
 
 @media (max-width: 1100px) {
@@ -867,6 +954,10 @@ tbody tr:last-child td {
 
   .review-layout {
     grid-template-columns: 1fr;
+  }
+
+  .review-toolbar__actions {
+    justify-content: start;
   }
 
   .column-builder__row {
@@ -894,6 +985,10 @@ tbody tr:last-child td {
   .empty-state {
     border-radius: 20px;
     padding: 18px;
+  }
+
+  .review-table {
+    min-width: 720px;
   }
 
   .template-grid {
