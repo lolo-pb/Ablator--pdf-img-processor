@@ -16,6 +16,10 @@ const mockDescriptions = [
   "Card payment",
 ];
 
+const XAI_BASE_URL = "https://api.x.ai/v1";
+const XAI_MODEL = "grok-4.3";
+const XAI_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/jpg", "image/png"]);
+
 function buildInstructions(preset: Preset): string {
   return [
     "You extract structured rows from documents and images.",
@@ -62,7 +66,7 @@ function buildMockResult(documents: SourceDocument[]): ExtractionResult {
         category: rowIndex % 2 === 0 ? "Operations" : "Income",
         counterparty: rowIndex % 2 === 0 ? "Vendor" : "Client",
         reference: `MOCK-${documentIndex}-${rowIndex}`,
-        notes: "Mock extraction used because OPENAI_API_KEY is not configured.",
+        notes: "Mock extraction used because XAI_API_KEY is not configured.",
         confidence: {
           overall: 0.72,
           fields: {
@@ -89,13 +93,37 @@ function buildMockResult(documents: SourceDocument[]): ExtractionResult {
   });
 }
 
-async function runOpenAiExtraction(args: {
+function getXaiClient(apiKey: string) {
+  return new OpenAI({
+    apiKey,
+    baseURL: XAI_BASE_URL,
+    timeout: 360000,
+  });
+}
+
+async function uploadDocumentToXai(args: {
+  client: OpenAI;
+  document: SourceDocument;
+  readDocument: (storagePath: string) => Promise<Buffer>;
+}) {
+  const buffer = await args.readDocument(args.document.storagePath);
+  const file = await OpenAI.toFile(buffer, args.document.filename, {
+    type: args.document.mimeType || "application/octet-stream",
+  });
+
+  return args.client.files.create({
+    file,
+    purpose: "assistants",
+  });
+}
+
+async function runGrokExtraction(args: {
   apiKey: string;
   preset: Preset;
   documents: SourceDocument[];
   readDocument: (storagePath: string) => Promise<Buffer>;
 }): Promise<ExtractionResult> {
-  const client = new OpenAI({ apiKey: args.apiKey });
+  const client = getXaiClient(args.apiKey);
   const content: any[] = [
     {
       type: "input_text",
@@ -104,79 +132,98 @@ async function runOpenAiExtraction(args: {
   ];
 
   for (const document of args.documents) {
-    const buffer = await args.readDocument(document.storagePath);
-    const base64 = buffer.toString("base64");
     if (document.mimeType === "application/pdf") {
+      const uploaded = await uploadDocumentToXai({
+        client,
+        document,
+        readDocument: args.readDocument,
+      });
+
       content.push({
         type: "input_file",
-        filename: document.filename,
-        file_data: `data:application/pdf;base64,${base64}`,
+        file_id: uploaded.id,
       });
-    } else {
+    } else if (XAI_IMAGE_MIME_TYPES.has(document.mimeType)) {
+      const buffer = await args.readDocument(document.storagePath);
+      const base64 = buffer.toString("base64");
       content.push({
         type: "input_image",
         image_url: `data:${document.mimeType};base64,${base64}`,
         detail: "high",
       });
+    } else {
+      const uploaded = await uploadDocumentToXai({
+        client,
+        document,
+        readDocument: args.readDocument,
+      });
+
+      content.push({
+        type: "input_file",
+        file_id: uploaded.id,
+      });
     }
   }
 
-  const response = await client.responses.create({
-    model: "gpt-5.4-mini",
-    instructions: buildInstructions(args.preset),
-    text: {
-      format: {
-        type: "json_schema",
-        name: "bank_transaction_rows",
-        schema: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            rows: {
-              type: "array",
-              items: {
-                type: "object",
-                additionalProperties: false,
-                properties: {
-                  date: { type: "string" },
-                  description: { type: "string" },
-                  amount: { type: "number" },
-                  currency: { type: "string" },
-                  direction: { type: "string", enum: ["debit", "credit"] },
-                  balance: { type: ["number", "null"] },
-                  category: { type: "string" },
-                  counterparty: { type: ["string", "null"] },
-                  reference: { type: "string" },
-                  notes: { type: "string" },
-                  confidence: { type: "number" },
+  const response = await client.responses.create(
+    {
+      model: XAI_MODEL,
+      instructions: buildInstructions(args.preset),
+      text: {
+        format: {
+          type: "json_schema",
+          name: "bank_transaction_rows",
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              rows: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    date: { type: "string" },
+                    description: { type: "string" },
+                    amount: { type: "number" },
+                    currency: { type: "string" },
+                    direction: { type: "string", enum: ["debit", "credit"] },
+                    balance: { type: ["number", "null"] },
+                    category: { type: "string" },
+                    counterparty: { type: ["string", "null"] },
+                    reference: { type: "string" },
+                    notes: { type: "string" },
+                    confidence: { type: "number" },
+                  },
+                  required: [
+                    "date",
+                    "description",
+                    "amount",
+                    "currency",
+                    "direction",
+                    "balance",
+                    "category",
+                    "counterparty",
+                    "reference",
+                    "notes",
+                    "confidence",
+                  ],
                 },
-                required: [
-                  "date",
-                  "description",
-                  "amount",
-                  "currency",
-                  "direction",
-                  "balance",
-                  "category",
-                  "counterparty",
-                  "reference",
-                  "notes",
-                  "confidence",
-                ],
               },
             },
+            required: ["rows"],
           },
-          required: ["rows"],
         },
       },
-    },
-    input: [
-      {
-        role: "user",
-        content,
-      },
-    ],
-  });
+      store: false,
+      input: [
+        {
+          role: "user",
+          content,
+        },
+      ],
+    } as any,
+  );
 
   const raw = response.output_text;
   const parsed = JSON.parse(raw) as { rows: Array<Record<string, unknown>> };
@@ -203,7 +250,7 @@ async function runOpenAiExtraction(args: {
     rows,
     warnings: [],
     processingMetadata: {
-      provider: "openai",
+      provider: "xai",
       processedAt: new Date().toISOString(),
       pageCount: args.documents.length,
       repairAttempted: false,
@@ -214,13 +261,13 @@ async function runOpenAiExtraction(args: {
 export function createExtractionProvider(): ExtractionProvider {
   return {
     async extractTransactions({ preset, documents, readDocument }) {
-      if (!process.env.OPENAI_API_KEY) {
+      if (!process.env.XAI_API_KEY) {
         return buildMockResult(documents);
       }
 
       try {
-        return await runOpenAiExtraction({
-          apiKey: process.env.OPENAI_API_KEY,
+        return await runGrokExtraction({
+          apiKey: process.env.XAI_API_KEY,
           preset,
           documents,
           readDocument,
@@ -229,8 +276,8 @@ export function createExtractionProvider(): ExtractionProvider {
         const fallback = buildMockResult(documents);
         fallback.warnings.push(
           error instanceof Error
-            ? `OpenAI extraction failed; fell back to mock provider: ${error.message}`
-            : "OpenAI extraction failed; fell back to mock provider.",
+            ? `xAI extraction failed; fell back to mock provider: ${error.message}`
+            : "xAI extraction failed; fell back to mock provider.",
         );
         return fallback;
       }

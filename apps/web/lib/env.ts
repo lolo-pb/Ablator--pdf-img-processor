@@ -6,7 +6,7 @@ type PublicEnv = {
 };
 
 type ServerEnv = PublicEnv & {
-  OPENAI_API_KEY?: string;
+  XAI_API_KEY?: string;
 };
 
 function readPublicEnv(): PublicEnv {
@@ -21,7 +21,7 @@ function readPublicEnv(): PublicEnv {
 export function readServerEnv(): ServerEnv {
   return {
     ...readPublicEnv(),
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    XAI_API_KEY: process.env.XAI_API_KEY,
   };
 }
 
@@ -39,7 +39,7 @@ export function hasSupabasePublicEnv() {
 }
 
 export function hasOpenAiEnv() {
-  return Boolean(process.env.OPENAI_API_KEY);
+  return Boolean(process.env.XAI_API_KEY);
 }
 
 export function requireSupabasePublicEnv() {
@@ -56,4 +56,3 @@ export function requireSupabasePublicEnv() {
     anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   };
 }
-
