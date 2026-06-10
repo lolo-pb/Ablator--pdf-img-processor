@@ -5,7 +5,7 @@ import type { Preset } from "@bank/domain";
 import { useMemo, useState } from "react";
 import { createPresetAction } from "../actions";
 
-type ColumnType = "date" | "number" | "money" | "text" | "custom";
+type ColumnType = "date" | "number" | "money" | "text" | "custom" | "enum";
 
 type DraftColumn = {
   id: string;
@@ -13,6 +13,8 @@ type DraftColumn = {
   type: ColumnType;
   required: boolean;
   customHint: string;
+  enumOptions: string[];
+  enumDraft: string;
 };
 
 type TemplateFormMessages = {
@@ -25,8 +27,12 @@ type TemplateFormMessages = {
   addColumn: string;
   columnLabel: string;
   columnType: string;
+  columnConfig: string;
   customText: string;
   customTextPlaceholder: string;
+  enumValues: string;
+  enumValuesPlaceholder: string;
+  addValue: string;
   required: string;
   actions: string;
   removeColumn: string;
@@ -37,6 +43,7 @@ type TemplateFormMessages = {
   typeMoney: string;
   typeText: string;
   typeCustom: string;
+  typeEnum: string;
   instructions: string;
   defaultInstructions: string;
   ignoreRules: string;
@@ -75,9 +82,9 @@ function moveColumn(columns: DraftColumn[], index: number, direction: -1 | 1) {
 
 function getDefaultColumns(messages: TemplateFormMessages): DraftColumn[] {
   return [
-    { id: "date", label: messages.defaultDateLabel, type: "date", required: true, customHint: "" },
-    { id: "description", label: messages.defaultDescriptionLabel, type: "text", required: true, customHint: "" },
-    { id: "total", label: messages.defaultAmountLabel, type: "money", required: true, customHint: "" },
+    { id: "date", label: messages.defaultDateLabel, type: "date", required: true, customHint: "", enumOptions: [], enumDraft: "" },
+    { id: "description", label: messages.defaultDescriptionLabel, type: "text", required: true, customHint: "", enumOptions: [], enumDraft: "" },
+    { id: "total", label: messages.defaultAmountLabel, type: "money", required: true, customHint: "", enumOptions: [], enumDraft: "" },
   ];
 }
 
@@ -89,6 +96,8 @@ function mapInitialColumns(preset: Preset | undefined, messages: TemplateFormMes
     type: column.type,
     required: column.required,
     customHint: column.customHint ?? "",
+    enumOptions: column.enumOptions ?? [],
+    enumDraft: "",
   }));
 }
 
@@ -104,12 +113,13 @@ export function TemplateForm({
   const serializedColumns = useMemo(
     () =>
       JSON.stringify(
-        columns.map(({ label, type, required, customHint }) => ({
+        columns.map(({ label, type, required, customHint, enumOptions }) => ({
           key: toKey(label),
           label,
           type,
           required,
           customHint: type === "custom" ? customHint : "",
+          enumOptions: type === "enum" ? enumOptions : [],
         })),
       ),
     [columns],
@@ -128,8 +138,35 @@ export function TemplateForm({
     const id = `column-${Date.now()}`;
     setColumns((current) => [
       ...current,
-      { id, label: "", type: "text", required: false, customHint: "" },
+      { id, label: "", type: "text", required: false, customHint: "", enumOptions: [], enumDraft: "" },
     ]);
+  }
+
+  function addEnumOption(id: string) {
+    setColumns((current) =>
+      current.map((column) => {
+        if (column.id !== id) return column;
+        const nextValue = column.enumDraft.trim();
+        if (!nextValue || column.enumOptions.includes(nextValue)) {
+          return { ...column, enumDraft: "" };
+        }
+        return {
+          ...column,
+          enumOptions: [...column.enumOptions, nextValue],
+          enumDraft: "",
+        };
+      }),
+    );
+  }
+
+  function removeEnumOption(id: string, option: string) {
+    setColumns((current) =>
+      current.map((column) =>
+        column.id === id
+          ? { ...column, enumOptions: column.enumOptions.filter((entry) => entry !== option) }
+          : column,
+      ),
+    );
   }
 
   return (
@@ -162,7 +199,7 @@ export function TemplateForm({
               <tr>
                 <th>{messages.columnLabel}</th>
                 <th>{messages.columnType}</th>
-                <th>{messages.customText}</th>
+                <th>{messages.columnConfig}</th>
                 <th>{messages.required}</th>
                 <th>{messages.actions}</th>
               </tr>
@@ -186,6 +223,8 @@ export function TemplateForm({
                         updateColumn(column.id, {
                           type: event.target.value as ColumnType,
                           customHint: event.target.value === "custom" ? column.customHint : "",
+                          enumOptions: event.target.value === "enum" ? column.enumOptions : [],
+                          enumDraft: "",
                         })
                       }
                     >
@@ -194,6 +233,7 @@ export function TemplateForm({
                       <option value="money">{messages.typeMoney}</option>
                       <option value="text">{messages.typeText}</option>
                       <option value="custom">{messages.typeCustom}</option>
+                      <option value="enum">{messages.typeEnum}</option>
                     </select>
                   </td>
                   <td>
@@ -204,6 +244,39 @@ export function TemplateForm({
                         onChange={(event) => updateColumn(column.id, { customHint: event.target.value })}
                         placeholder={messages.customTextPlaceholder}
                       />
+                    ) : column.type === "enum" ? (
+                      <div className="column-builder-table__enum">
+                        <div className="column-builder-table__chips">
+                          {column.enumOptions.map((option) => (
+                            <button
+                              key={option}
+                              type="button"
+                              className="column-builder-table__chip"
+                              onClick={() => removeEnumOption(column.id, option)}
+                              title={messages.removeColumn}
+                            >
+                              {option} x
+                            </button>
+                          ))}
+                        </div>
+                        <div className="column-builder-table__enum-entry">
+                          <input
+                            className="column-builder-table__input"
+                            value={column.enumDraft}
+                            onChange={(event) => updateColumn(column.id, { enumDraft: event.target.value })}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === ",") {
+                                event.preventDefault();
+                                addEnumOption(column.id);
+                              }
+                            }}
+                            placeholder={messages.enumValuesPlaceholder}
+                          />
+                          <button type="button" className="secondary" onClick={() => addEnumOption(column.id)}>
+                            {messages.addValue}
+                          </button>
+                        </div>
+                      </div>
                     ) : (
                       <span className="column-builder-table__placeholder">-</span>
                     )}

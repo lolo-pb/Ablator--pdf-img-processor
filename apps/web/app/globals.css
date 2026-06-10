@@ -555,6 +555,39 @@ button:disabled {
   font-size: 0.88rem;
 }
 
+.column-builder-table__enum {
+  display: grid;
+  gap: 8px;
+}
+
+.column-builder-table__chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.column-builder-table__chip {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #eef4ff;
+  color: var(--primary-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.column-builder-table__enum-entry {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.column-builder-table__enum-entry .column-builder-table__input {
+  flex: 1 1 auto;
+}
+
 .column-builder-table__actions {
   display: flex;
   width: 100%;

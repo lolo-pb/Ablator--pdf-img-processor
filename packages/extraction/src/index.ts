@@ -50,7 +50,8 @@ function buildColumnInstructions(columns: OutputColumn[]) {
     .map((column) => {
       const required = column.required ? "required" : "optional";
       const hint = column.customHint ? `; hint=${column.customHint}` : "";
-      return `- ${column.key}: ${column.label}; type=${column.type}; ${required}${hint}`;
+      const options = column.enumOptions.length ? `; allowed=${column.enumOptions.join(", ")}` : "";
+      return `- ${column.key}: ${column.label}; type=${column.type}; ${required}${hint}${options}`;
     })
     .join("\n");
 }
