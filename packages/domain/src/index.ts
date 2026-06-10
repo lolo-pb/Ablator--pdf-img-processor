@@ -29,7 +29,7 @@ export const confidenceSchema = z.object({
 });
 export type Confidence = z.infer<typeof confidenceSchema>;
 
-export const outputColumnTypeSchema = z.enum(["date", "number", "money", "custom"]);
+export const outputColumnTypeSchema = z.enum(["date", "number", "money", "text", "custom"]);
 export type OutputColumnType = z.infer<typeof outputColumnTypeSchema>;
 
 export const outputColumnSchema = z.object({
@@ -37,7 +37,8 @@ export const outputColumnSchema = z.object({
   label: z.string().min(1),
   type: z.preprocess((value) => {
     if (value === "currency") return "money";
-    if (value === "string" || value === "enum") return "custom";
+    if (value === "string") return "text";
+    if (value === "enum") return "custom";
     return value;
   }, outputColumnTypeSchema),
   required: z.boolean().default(false),

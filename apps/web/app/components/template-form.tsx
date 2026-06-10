@@ -5,7 +5,7 @@ import type { Preset } from "@bank/domain";
 import { useMemo, useState } from "react";
 import { createPresetAction } from "../actions";
 
-type ColumnType = "date" | "number" | "money" | "custom";
+type ColumnType = "date" | "number" | "money" | "text" | "custom";
 
 type DraftColumn = {
   id: string;
@@ -35,6 +35,7 @@ type TemplateFormMessages = {
   typeDate: string;
   typeNumber: string;
   typeMoney: string;
+  typeText: string;
   typeCustom: string;
   instructions: string;
   defaultInstructions: string;
@@ -75,7 +76,7 @@ function moveColumn(columns: DraftColumn[], index: number, direction: -1 | 1) {
 function getDefaultColumns(messages: TemplateFormMessages): DraftColumn[] {
   return [
     { id: "date", label: messages.defaultDateLabel, type: "date", required: true, customHint: "" },
-    { id: "description", label: messages.defaultDescriptionLabel, type: "custom", required: true, customHint: "" },
+    { id: "description", label: messages.defaultDescriptionLabel, type: "text", required: true, customHint: "" },
     { id: "total", label: messages.defaultAmountLabel, type: "money", required: true, customHint: "" },
   ];
 }
@@ -127,7 +128,7 @@ export function TemplateForm({
     const id = `column-${Date.now()}`;
     setColumns((current) => [
       ...current,
-      { id, label: "", type: "custom", required: false, customHint: "" },
+      { id, label: "", type: "text", required: false, customHint: "" },
     ]);
   }
 
@@ -191,6 +192,7 @@ export function TemplateForm({
                       <option value="date">{messages.typeDate}</option>
                       <option value="number">{messages.typeNumber}</option>
                       <option value="money">{messages.typeMoney}</option>
+                      <option value="text">{messages.typeText}</option>
                       <option value="custom">{messages.typeCustom}</option>
                     </select>
                   </td>
