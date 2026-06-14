@@ -40,8 +40,12 @@ function buildResponseSchema(preset: Preset) {
           required: [...preset.definition.columns.map((column) => column.key), "confidence"],
         },
       },
+      warnings: {
+        type: "array",
+        items: { type: "string" },
+      },
     },
-    required: ["rows"],
+    required: ["rows", "warnings"],
   } as const;
 }
 
@@ -62,6 +66,8 @@ function buildInstructions(preset: Preset): string {
     "Use the template context to decide what counts as a row and what each field means.",
     "Use the exact schema keys provided by the template.",
     "Return null when a value is missing or not visible.",
+    "If any template instruction is ambiguous, contradictory, underspecified, or hard to apply to the document, add a short note to warnings.",
+    "If you are unsure about how to interpret a value, prefer adding a warning instead of staying silent.",
     "Return strict JSON only.",
     "Do not explain your reasoning.",
     `Document type: ${preset.documentType}.`,
@@ -218,12 +224,15 @@ async function runGeminiExtraction(args: {
     throw new Error("Gemini returned an empty response.");
   }
 
-  const parsed = JSON.parse(raw) as { rows: Array<Record<string, unknown>> };
+  const parsed = JSON.parse(raw) as {
+    rows: Array<Record<string, unknown>>;
+    warnings?: string[];
+  };
   const rows = normalizeResponseRows({ rows: parsed.rows, preset: args.preset });
 
   return extractionResultSchema.parse({
     rows,
-    warnings: [],
+    warnings: Array.isArray(parsed.warnings) ? parsed.warnings.filter((entry) => typeof entry === "string" && entry.trim().length > 0) : [],
     processingMetadata: {
       provider: "gemini",
       processedAt: new Date().toISOString(),
