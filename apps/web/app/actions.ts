@@ -5,10 +5,11 @@ import { redirect } from "next/navigation";
 import { outputColumnSchema } from "@bank/domain";
 import {
   createOrReplaceActiveBatch,
+  createPreset,
   getReviewRoute,
   getTemplateRoute,
   processJob,
-  savePresetVersion,
+  updatePreset,
 } from "../lib/services";
 
 function splitLines(value: FormDataEntryValue | null): string[] {
@@ -28,7 +29,7 @@ function parseColumns(value: FormDataEntryValue | null) {
 
 export async function createPresetAction(formData: FormData) {
   const businessId = String(formData.get("businessId"));
-  const preset = await savePresetVersion({
+  const preset = await createPreset({
     businessId,
     name: String(formData.get("name")),
     documentType: String(formData.get("documentType")),
@@ -38,6 +39,24 @@ export async function createPresetAction(formData: FormData) {
   });
 
   revalidatePath(`/businesses/${businessId}`);
+  redirect(getTemplateRoute(businessId, preset.id));
+}
+
+export async function updatePresetAction(formData: FormData) {
+  const businessId = String(formData.get("businessId"));
+  const presetId = String(formData.get("presetId"));
+  const preset = await updatePreset({
+    businessId,
+    presetId,
+    name: String(formData.get("name")),
+    documentType: String(formData.get("documentType")),
+    columns: parseColumns(formData.get("columnsJson")),
+    instructionText: String(formData.get("instructionText")),
+    ignoreRules: splitLines(formData.get("ignoreRules")),
+  });
+
+  revalidatePath(`/businesses/${businessId}`);
+  revalidatePath(getTemplateRoute(businessId, preset.id));
   redirect(getTemplateRoute(businessId, preset.id));
 }
 

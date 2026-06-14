@@ -12,6 +12,11 @@ import {
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 
+type GeminiResponseShape = {
+  rows: Array<Record<string, unknown>>;
+  warnings?: string[];
+};
+
 function buildColumnSchema(column: OutputColumn) {
   if (column.type === "number" || column.type === "money") {
     return { type: ["number", "null"] };
@@ -76,6 +81,44 @@ function buildInstructions(preset: Preset): string {
     "Output columns:",
     buildColumnInstructions(preset.definition.columns),
   ].join("\n");
+}
+
+function extractJsonObject(raw: string) {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    return trimmed;
+  }
+
+  const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenceMatch?.[1]) {
+    return fenceMatch[1].trim();
+  }
+
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1).trim();
+  }
+
+  return trimmed;
+}
+
+function parseGeminiResponse(raw: string) {
+  try {
+    return {
+      parsed: JSON.parse(raw) as GeminiResponseShape,
+      repairAttempted: false,
+    };
+  } catch {
+    const extracted = extractJsonObject(raw);
+    if (extracted !== raw) {
+      return {
+        parsed: JSON.parse(extracted) as GeminiResponseShape,
+        repairAttempted: true,
+      };
+    }
+    throw new Error("Gemini returned invalid JSON that could not be repaired.");
+  }
 }
 
 function toConfidenceNumber(value: unknown) {
@@ -224,20 +267,24 @@ async function runGeminiExtraction(args: {
     throw new Error("Gemini returned an empty response.");
   }
 
-  const parsed = JSON.parse(raw) as {
-    rows: Array<Record<string, unknown>>;
-    warnings?: string[];
-  };
+  const { parsed, repairAttempted } = parseGeminiResponse(raw);
   const rows = normalizeResponseRows({ rows: parsed.rows, preset: args.preset });
+  const warnings = Array.isArray(parsed.warnings)
+    ? parsed.warnings.filter((entry) => typeof entry === "string" && entry.trim().length > 0)
+    : [];
+
+  if (repairAttempted) {
+    warnings.push("Gemini response JSON needed a repair pass before it could be parsed.");
+  }
 
   return extractionResultSchema.parse({
     rows,
-    warnings: Array.isArray(parsed.warnings) ? parsed.warnings.filter((entry) => typeof entry === "string" && entry.trim().length > 0) : [],
+    warnings,
     processingMetadata: {
       provider: "gemini",
       processedAt: new Date().toISOString(),
       pageCount: args.documents.length,
-      repairAttempted: false,
+      repairAttempted,
     },
   });
 }
@@ -249,22 +296,12 @@ export function createExtractionProvider(): ExtractionProvider {
         return buildMockResult(preset, documents);
       }
 
-      try {
-        return await runGeminiExtraction({
-          apiKey: process.env.GEMINI_API_KEY,
-          preset,
-          documents,
-          readDocument,
-        });
-      } catch (error) {
-        const fallback = buildMockResult(preset, documents);
-        fallback.warnings.push(
-          error instanceof Error
-            ? `Gemini extraction failed; fell back to mock provider: ${error.message}`
-            : "Gemini extraction failed; fell back to mock provider.",
-        );
-        return fallback;
-      }
+      return runGeminiExtraction({
+        apiKey: process.env.GEMINI_API_KEY,
+        preset,
+        documents,
+        readDocument,
+      });
     },
   };
 }

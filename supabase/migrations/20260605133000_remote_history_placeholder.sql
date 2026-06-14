@@ -1,0 +1,6 @@
+-- Placeholder migration to reconcile local history with the remote Supabase project.
+-- The actual SQL for this migration no longer exists in the repository, but the
+-- remote project has already recorded version 20260605133000 as applied.
+--
+-- Keeping this no-op file locally allows `supabase db push` and related commands
+-- to compare migration history without failing on the missing version.

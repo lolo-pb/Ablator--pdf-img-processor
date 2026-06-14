@@ -1,5 +1,5 @@
+import { updatePresetAction } from "../../../../../actions";
 import { TemplateEditorPage } from "../../../../../components/template-editor-page";
-import { redirect } from "next/navigation";
 import { getLocale, getMessages } from "../../../../../../lib/i18n";
 import { getTemplateDetailData } from "../../../../../../lib/services";
 
@@ -12,9 +12,6 @@ export default async function EditTemplatePage({
   const locale = await getLocale();
   const messages = await getMessages(locale);
   const data = await getTemplateDetailData({ businessId, templateId });
-  if (templateId !== data.preset.id) {
-    redirect(`/businesses/${businessId}/templates/${data.preset.id}/edit`);
-  }
 
   return (
     <TemplateEditorPage
@@ -29,7 +26,8 @@ export default async function EditTemplatePage({
       activeLabel={messages.nav.editTemplate}
       initialPreset={data.preset}
       templateHref={`/businesses/${businessId}/templates/${templateId}`}
-      submitLabel={messages.templateForm.saveNewVersion}
+      submitLabel={messages.templateForm.submit}
+      submitAction={updatePresetAction}
     />
   );
 }

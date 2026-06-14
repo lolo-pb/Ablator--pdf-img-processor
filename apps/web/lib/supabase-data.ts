@@ -162,7 +162,7 @@ export const supabasePresetStore: PresetStore = {
   async listByBusiness(businessId) {
     await bootstrapIfNeeded();
     const client = getServerSupabaseClient();
-    const { data, error } = await client.from("presets").select("*").eq("business_id", businessId).order("version", { ascending: false });
+    const { data, error } = await client.from("presets").select("*").eq("business_id", businessId).order("updated_at", { ascending: false });
     if (error) throw new Error(`Supabase presets lookup failed: ${error.message}`);
     return (data ?? []).map(mapPreset);
   },
@@ -172,11 +172,8 @@ export const supabasePresetStore: PresetStore = {
     if (error) throw new Error(`Supabase preset lookup failed: ${error.message}`);
     return data ? mapPreset(data) : null;
   },
-  async saveVersion(input) {
+  async createPreset(input) {
     const client = getServerSupabaseClient();
-    const { data: related, error: lookupError } = await client.from("presets").select("version").eq("business_id", input.businessId).eq("name", input.name);
-    if (lookupError) throw new Error(`Supabase preset version lookup failed: ${lookupError.message}`);
-    const version = related && related.length ? Math.max(...related.map((row: any) => row.version)) + 1 : 1;
     const now = new Date().toISOString();
     const { data, error } = await client
       .from("presets")
@@ -184,7 +181,7 @@ export const supabasePresetStore: PresetStore = {
         id: input.id ?? randomUUID(),
         business_id: input.businessId,
         name: input.name,
-        version,
+        version: 1,
         status: input.status,
         document_type: input.documentType,
         definition: input.definition,
@@ -195,6 +192,27 @@ export const supabasePresetStore: PresetStore = {
       .select("*")
       .single();
     if (error) throw new Error(`Supabase preset save failed: ${error.message}`);
+    return mapPreset(data);
+  },
+  async updatePreset(input) {
+    const client = getServerSupabaseClient();
+    const { data, error } = await client
+      .from("presets")
+      .update({
+        business_id: input.businessId,
+        name: input.name,
+        version: input.version,
+        status: input.status,
+        document_type: input.documentType,
+        definition: input.definition,
+        example_notes: input.exampleNotes,
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq("id", input.id)
+      .eq("business_id", input.businessId)
+      .select("*")
+      .single();
+    if (error) throw new Error(`Supabase preset update failed: ${error.message}`);
     return mapPreset(data);
   },
 };

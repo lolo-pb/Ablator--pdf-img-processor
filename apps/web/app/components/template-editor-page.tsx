@@ -1,4 +1,5 @@
 import type { Preset } from "@bank/domain";
+import type { createPresetAction, updatePresetAction } from "../actions";
 import { DashboardShell } from "./dashboard-shell";
 import { TemplateForm } from "./template-form";
 import type { Locale, Messages } from "../../lib/i18n";
@@ -16,6 +17,7 @@ type TemplateEditorPageProps = {
   initialPreset?: Preset;
   templateHref?: string;
   submitLabel?: string;
+  submitAction?: typeof createPresetAction | typeof updatePresetAction;
 };
 
 export function TemplateEditorPage(props: TemplateEditorPageProps) {
@@ -41,6 +43,7 @@ export function TemplateEditorPage(props: TemplateEditorPageProps) {
           businessId={props.businessId}
           cancelHref={props.cancelHref}
           initialPreset={props.initialPreset}
+          submitAction={props.submitAction}
           messages={{
             ...props.messages.templateForm,
             title: props.title,

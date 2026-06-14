@@ -296,7 +296,8 @@ export interface TenantStore {
 export interface PresetStore {
   listByBusiness(businessId: string): Promise<Preset[]>;
   getById(businessId: string, presetId: string): Promise<Preset | null>;
-  saveVersion(preset: Omit<Preset, "id" | "version" | "createdAt" | "updatedAt"> & { id?: string }): Promise<Preset>;
+  createPreset(preset: Omit<Preset, "id" | "version" | "createdAt" | "updatedAt"> & { id?: string }): Promise<Preset>;
+  updatePreset(preset: Preset): Promise<Preset>;
 }
 
 export interface JobStore {

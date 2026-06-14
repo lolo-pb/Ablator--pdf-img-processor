@@ -172,6 +172,7 @@ export function TemplateForm({
   return (
     <form action={submitAction} className="stack template-form">
       <input type="hidden" name="businessId" value={businessId} />
+      {initialPreset ? <input type="hidden" name="presetId" value={initialPreset.id} /> : null}
       <input type="hidden" name="columnsJson" value={serializedColumns} />
 
       <section className="template-form__grid">

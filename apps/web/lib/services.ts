@@ -22,24 +22,6 @@ import {
 
 const extractionProvider = createExtractionProvider();
 
-function getLatestActiveTemplates(presets: Preset[]) {
-  const latestByName = new Map<string, Preset>();
-  for (const preset of presets) {
-    if (preset.status !== "active") {
-      continue;
-    }
-    const current = latestByName.get(preset.name);
-    if (!current || preset.version > current.version) {
-      latestByName.set(preset.name, preset);
-    }
-  }
-  return Array.from(latestByName.values()).sort((a, b) => a.name.localeCompare(b.name));
-}
-
-function getLatestActiveTemplateForName(presets: Preset[], name: string) {
-  return getLatestActiveTemplates(presets).find((preset) => preset.name === name) ?? null;
-}
-
 export async function getDashboardData() {
   const user = await authProvider.getCurrentUser();
   const memberships = await tenantStore.listBusinessesForUser(user.id);
@@ -48,7 +30,7 @@ export async function getDashboardData() {
     memberships.map(async (membership) => ({
       business: membership.business,
       role: membership.role,
-      templates: getLatestActiveTemplates(await presetStore.listByBusiness(membership.business.id)),
+      templates: (await presetStore.listByBusiness(membership.business.id)).filter((preset) => preset.status === "active"),
       jobs: await jobStore.listByBusiness(membership.business.id),
     })),
   );
@@ -70,7 +52,7 @@ export async function getBusinessWorkspace(businessId: string) {
     business: membership.business,
     role: membership.role,
     presets,
-    templates: getLatestActiveTemplates(presets),
+    templates: presets.filter((preset) => preset.status === "active").sort((a, b) => a.name.localeCompare(b.name)),
   };
 }
 
@@ -100,25 +82,19 @@ export async function getTemplateDetailData(args: {
   jobId?: string | null;
 }) {
   const workspace = await getBusinessWorkspace(args.businessId);
-  const requestedPreset = await presetStore.getById(args.businessId, args.templateId);
-  if (!requestedPreset) {
+  const preset = await presetStore.getById(args.businessId, args.templateId);
+  if (!preset) {
     throw new Error("Template not found.");
   }
-  const preset = getLatestActiveTemplateForName(workspace.presets, requestedPreset.name) ?? requestedPreset;
-  const familyPresetIds = new Set(
-    workspace.presets
-      .filter((entry) => entry.name === requestedPreset.name)
-      .map((entry) => entry.id),
-  );
 
   const activeJob = await jobStore.getActiveJobForUser(workspace.user.id);
   const requestedJob =
     args.jobId && args.jobId.length > 0 ? await jobStore.getJob(args.businessId, args.jobId) : null;
 
   let job: ProcessingJob | null = null;
-  if (requestedJob && activeJob && requestedJob.id === activeJob.id && familyPresetIds.has(requestedJob.presetId)) {
+  if (requestedJob && activeJob && requestedJob.id === activeJob.id && requestedJob.presetId === preset.id) {
     job = requestedJob;
-  } else if (activeJob && activeJob.businessId === args.businessId && familyPresetIds.has(activeJob.presetId)) {
+  } else if (activeJob && activeJob.businessId === args.businessId && activeJob.presetId === preset.id) {
     job = activeJob;
   }
 
@@ -127,7 +103,6 @@ export async function getTemplateDetailData(args: {
 
   return {
     ...workspace,
-    requestedPreset,
     preset,
     job,
     documents,
@@ -141,6 +116,9 @@ export async function getJobReviewData(businessId: string, jobId: string) {
   if (!activeJob || activeJob.id !== jobId || activeJob.businessId !== businessId) {
     throw new Error("This batch is no longer active. Return to the template and process again.");
   }
+  if (activeJob.status !== "review_required" && activeJob.status !== "completed") {
+    throw new Error("This review batch is no longer available. Re-upload files using the current template.");
+  }
   const job = activeJob;
   const rows = await jobStore.listRows(jobId);
   const documents = await jobStore.listDocuments(jobId);
@@ -148,7 +126,6 @@ export async function getJobReviewData(businessId: string, jobId: string) {
   if (!preset) {
     throw new Error("Preset not found.");
   }
-  const latestPreset = getLatestActiveTemplateForName(workspace.presets, preset.name) ?? preset;
 
   return {
     ...workspace,
@@ -156,8 +133,24 @@ export async function getJobReviewData(businessId: string, jobId: string) {
     rows,
     documents,
     preset,
-    latestPreset,
   };
+}
+
+async function clearActiveTemplateBatch(args: { businessId: string; presetId: string }) {
+  const { user, job } = await getActiveBatchForCurrentUser();
+  if (!job || job.businessId !== args.businessId || job.presetId !== args.presetId || job.createdBy !== user.id) {
+    return;
+  }
+  if (job.status === "completed") {
+    return;
+  }
+  await clearBatch(job);
+  await jobStore.updateJob({
+    ...job,
+    status: "uploaded",
+    warnings: ["Template changed. Upload files again to create a new review batch."],
+    reviewCompletedAt: null,
+  });
 }
 
 async function buildSourceDocuments(jobId: string, files: File[]) {
@@ -372,7 +365,7 @@ export async function buildExport(args: {
   return { buffer, filename };
 }
 
-export async function savePresetVersion(args: {
+export async function createPreset(args: {
   businessId: string;
   name: string;
   documentType: Preset["documentType"];
@@ -382,7 +375,7 @@ export async function savePresetVersion(args: {
 }) {
   await getBusinessWorkspace(args.businessId);
 
-  return presetStore.saveVersion({
+  return presetStore.createPreset({
     businessId: args.businessId,
     name: args.name,
     status: "active",
@@ -399,6 +392,39 @@ export async function savePresetVersion(args: {
     },
     exampleNotes: "",
   });
+}
+
+export async function updatePreset(args: {
+  businessId: string;
+  presetId: string;
+  name: string;
+  documentType: Preset["documentType"];
+  columns: Preset["definition"]["columns"];
+  instructionText: string;
+  ignoreRules: string[];
+}) {
+  const workspace = await getBusinessWorkspace(args.businessId);
+  const existing = await presetStore.getById(args.businessId, args.presetId);
+  if (!existing) {
+    throw new Error("Template not found.");
+  }
+
+  const updated = await presetStore.updatePreset({
+    ...existing,
+    businessId: workspace.business.id,
+    name: args.name,
+    documentType: args.documentType,
+    definition: {
+      ...existing.definition,
+      columns: args.columns,
+      ignoreRules: args.ignoreRules,
+      instructionText: args.instructionText,
+    },
+    updatedAt: new Date().toISOString(),
+  });
+
+  await clearActiveTemplateBatch({ businessId: args.businessId, presetId: existing.id });
+  return updated;
 }
 
 export async function requireBusiness(businessId: string): Promise<Business> {

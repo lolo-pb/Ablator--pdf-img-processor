@@ -54,7 +54,7 @@ export const presetStore: PresetStore = {
     const state = await readAppState();
     return state.presets
       .filter((preset) => preset.businessId === businessId)
-      .sort((a, b) => b.version - a.version)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .map((preset) => presetSchema.parse(preset));
   },
   async getById(businessId, presetId) {
@@ -62,21 +62,34 @@ export const presetStore: PresetStore = {
     const preset = state.presets.find((entry) => entry.businessId === businessId && entry.id === presetId);
     return preset ? presetSchema.parse(preset) : null;
   },
-  async saveVersion(input) {
+  async createPreset(input) {
     return withAppState((state) => {
-      const related = state.presets.filter(
-        (preset) => preset.businessId === input.businessId && preset.name === input.name,
-      );
-      const version = related.length ? Math.max(...related.map((preset) => preset.version)) + 1 : 1;
       const now = new Date().toISOString();
       const nextPreset: Preset = {
         ...input,
         id: input.id ?? randomUUID(),
-        version,
+        version: 1,
         createdAt: now,
         updatedAt: now,
       };
       state.presets.push(nextPreset);
+      return nextPreset;
+    });
+  },
+  async updatePreset(input) {
+    return withAppState((state) => {
+      const index = state.presets.findIndex(
+        (preset) => preset.businessId === input.businessId && preset.id === input.id,
+      );
+      if (index < 0) {
+        throw new Error("Preset not found.");
+      }
+      const nextPreset: Preset = {
+        ...input,
+        createdAt: state.presets[index].createdAt,
+        updatedAt: new Date().toISOString(),
+      };
+      state.presets[index] = nextPreset;
       return nextPreset;
     });
   },
@@ -195,9 +208,13 @@ export const activePresetStore: PresetStore = {
     if (shouldUseSupabase()) return supabasePresetStore.getById(businessId, presetId);
     return presetStore.getById(businessId, presetId);
   },
-  async saveVersion(input) {
-    if (shouldUseSupabase()) return supabasePresetStore.saveVersion(input);
-    return presetStore.saveVersion(input);
+  async createPreset(input) {
+    if (shouldUseSupabase()) return supabasePresetStore.createPreset(input);
+    return presetStore.createPreset(input);
+  },
+  async updatePreset(input) {
+    if (shouldUseSupabase()) return supabasePresetStore.updatePreset(input);
+    return presetStore.updatePreset(input);
   },
 };
 

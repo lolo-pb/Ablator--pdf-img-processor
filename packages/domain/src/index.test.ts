@@ -35,7 +35,7 @@ describe("presetDefinitionSchema", () => {
       payeeHints: [],
     });
 
-    expect(parsed.columns[0].type).toBe("custom");
+    expect(parsed.columns[0].type).toBe("text");
     expect(parsed.columns[1].type).toBe("money");
   });
 });
