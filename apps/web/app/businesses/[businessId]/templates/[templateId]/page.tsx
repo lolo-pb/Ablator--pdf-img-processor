@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { SourceDocument } from "@bank/domain";
 import { processTemplateAction } from "../../../../actions";
 import { DashboardShell } from "../../../../components/dashboard-shell";
@@ -18,9 +19,11 @@ export default async function TemplateDetailPage({
   const locale = await getLocale();
   const messages = await getMessages(locale);
   const data = await getTemplateDetailData({ businessId, templateId, jobId });
+  if (templateId !== data.preset.id) {
+    redirect(jobId ? `/businesses/${businessId}/templates/${data.preset.id}?jobId=${jobId}` : `/businesses/${businessId}/templates/${data.preset.id}`);
+  }
   const reviewJob =
     data.job &&
-    data.job.presetId === data.preset.id &&
     (data.job.status === "review_required" || data.job.status === "completed")
       ? data.job
       : null;

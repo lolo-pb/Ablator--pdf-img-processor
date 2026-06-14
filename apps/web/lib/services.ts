@@ -36,6 +36,10 @@ function getLatestActiveTemplates(presets: Preset[]) {
   return Array.from(latestByName.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function getLatestActiveTemplateForName(presets: Preset[], name: string) {
+  return getLatestActiveTemplates(presets).find((preset) => preset.name === name) ?? null;
+}
+
 export async function getDashboardData() {
   const user = await authProvider.getCurrentUser();
   const memberships = await tenantStore.listBusinessesForUser(user.id);
@@ -96,19 +100,25 @@ export async function getTemplateDetailData(args: {
   jobId?: string | null;
 }) {
   const workspace = await getBusinessWorkspace(args.businessId);
-  const preset = await presetStore.getById(args.businessId, args.templateId);
-  if (!preset) {
+  const requestedPreset = await presetStore.getById(args.businessId, args.templateId);
+  if (!requestedPreset) {
     throw new Error("Template not found.");
   }
+  const preset = getLatestActiveTemplateForName(workspace.presets, requestedPreset.name) ?? requestedPreset;
+  const familyPresetIds = new Set(
+    workspace.presets
+      .filter((entry) => entry.name === requestedPreset.name)
+      .map((entry) => entry.id),
+  );
 
   const activeJob = await jobStore.getActiveJobForUser(workspace.user.id);
   const requestedJob =
     args.jobId && args.jobId.length > 0 ? await jobStore.getJob(args.businessId, args.jobId) : null;
 
   let job: ProcessingJob | null = null;
-  if (requestedJob && activeJob && requestedJob.id === activeJob.id && requestedJob.presetId === preset.id) {
+  if (requestedJob && activeJob && requestedJob.id === activeJob.id && familyPresetIds.has(requestedJob.presetId)) {
     job = requestedJob;
-  } else if (activeJob && activeJob.businessId === args.businessId && activeJob.presetId === preset.id) {
+  } else if (activeJob && activeJob.businessId === args.businessId && familyPresetIds.has(activeJob.presetId)) {
     job = activeJob;
   }
 
@@ -117,6 +127,7 @@ export async function getTemplateDetailData(args: {
 
   return {
     ...workspace,
+    requestedPreset,
     preset,
     job,
     documents,
@@ -137,6 +148,7 @@ export async function getJobReviewData(businessId: string, jobId: string) {
   if (!preset) {
     throw new Error("Preset not found.");
   }
+  const latestPreset = getLatestActiveTemplateForName(workspace.presets, preset.name) ?? preset;
 
   return {
     ...workspace,
@@ -144,6 +156,7 @@ export async function getJobReviewData(businessId: string, jobId: string) {
     rows,
     documents,
     preset,
+    latestPreset,
   };
 }
 

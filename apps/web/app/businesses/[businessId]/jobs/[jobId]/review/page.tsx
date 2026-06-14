@@ -27,7 +27,7 @@ export default async function ReviewPage({
       navItems={[
         { label: messages.nav.businesses, href: "/", active: false },
         { label: messages.nav.templates, href: `/businesses/${businessId}`, active: false },
-        { label: data.preset.name, href: getTemplateRoute(businessId, data.preset.id, jobId), active: false },
+        { label: data.latestPreset.name, href: getTemplateRoute(businessId, data.latestPreset.id, jobId), active: false },
         { label: messages.nav.review, href: `/businesses/${businessId}/jobs/${jobId}/review`, active: true },
       ]}
     >
