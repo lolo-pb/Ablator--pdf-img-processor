@@ -47,16 +47,21 @@ export const outputColumnSchema = z.object({
 });
 export type OutputColumn = z.infer<typeof outputColumnSchema>;
 
+const ignoreTextSchema = z.preprocess((value) => {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => String(entry).trim())
+      .filter(Boolean)
+      .join("\n");
+  }
+  return value ?? "";
+}, z.string());
+
 export const presetDefinitionSchema = z
   .object({
     columns: z.array(outputColumnSchema).min(1),
-    classificationCategories: z.array(z.string().min(1)).default([]),
-    ignoreRules: z.array(z.string().min(1)).default([]),
+    ignoreRules: ignoreTextSchema.default(""),
     instructionText: z.string().min(1),
-    dateParsingRules: z.array(z.string().min(1)).default([]),
-    amountParsingRules: z.array(z.string().min(1)).default([]),
-    directionRules: z.array(z.string().min(1)).default([]),
-    payeeHints: z.array(z.string().min(1)).default([]),
   })
   .superRefine((value, ctx) => {
     const seen = new Set<string>();
@@ -69,18 +74,6 @@ export const presetDefinitionSchema = z
         });
       }
       seen.add(column.key);
-    }
-
-    const categorySet = new Set<string>();
-    for (const category of value.classificationCategories) {
-      if (categorySet.has(category.toLowerCase())) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["classificationCategories"],
-          message: `Duplicate classification category: ${category}`,
-        });
-      }
-      categorySet.add(category.toLowerCase());
     }
   });
 export type PresetDefinition = z.infer<typeof presetDefinitionSchema>;

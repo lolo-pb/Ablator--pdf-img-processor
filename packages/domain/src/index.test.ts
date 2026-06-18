@@ -8,13 +8,8 @@ describe("presetDefinitionSchema", () => {
         { key: "date", label: "Date", type: "date", required: true },
         { key: "date", label: "Duplicate date", type: "date", required: false },
       ],
-      classificationCategories: ["Ops"],
-      ignoreRules: [],
+      ignoreRules: "",
       instructionText: "Extract rows",
-      dateParsingRules: [],
-      amountParsingRules: [],
-      directionRules: [],
-      payeeHints: [],
     });
 
     expect(parsed.success).toBe(false);
@@ -26,17 +21,22 @@ describe("presetDefinitionSchema", () => {
         { key: "description", label: "Description", type: "string", required: true },
         { key: "amount", label: "Amount", type: "currency", required: true },
       ],
-      classificationCategories: [],
-      ignoreRules: [],
+      ignoreRules: "",
       instructionText: "Extract rows",
-      dateParsingRules: [],
-      amountParsingRules: [],
-      directionRules: [],
-      payeeHints: [],
     });
 
     expect(parsed.columns[0].type).toBe("text");
     expect(parsed.columns[1].type).toBe("money");
+  });
+
+  it("normalizes legacy ignoreRules arrays into freeform text", () => {
+    const parsed = presetDefinitionSchema.parse({
+      columns: [{ key: "description", label: "Description", type: "text", required: true }],
+      ignoreRules: ["Ignore headers", "Ignore totals"],
+      instructionText: "Extract rows",
+    });
+
+    expect(parsed.ignoreRules).toBe("Ignore headers\nIgnore totals");
   });
 });
 

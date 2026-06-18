@@ -343,7 +343,7 @@ export function TemplateForm({
           name="ignoreRules"
           rows={3}
           defaultValue={
-            initialPreset?.definition.ignoreRules.join("\n") ??
+            initialPreset?.definition.ignoreRules ??
             messages.defaultIgnoreRules
           }
         />

@@ -12,13 +12,6 @@ import {
   updatePreset,
 } from "../lib/services";
 
-function splitLines(value: FormDataEntryValue | null): string[] {
-  return String(value ?? "")
-    .split(/\r?\n|,/)
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
 function parseColumns(value: FormDataEntryValue | null) {
   const raw = typeof value === "string" && value.length > 0 ? JSON.parse(value) : [];
   if (!Array.isArray(raw)) {
@@ -35,7 +28,7 @@ export async function createPresetAction(formData: FormData) {
     documentType: String(formData.get("documentType")),
     columns: parseColumns(formData.get("columnsJson")),
     instructionText: String(formData.get("instructionText")),
-    ignoreRules: splitLines(formData.get("ignoreRules")),
+    ignoreRules: String(formData.get("ignoreRules") ?? ""),
   });
 
   revalidatePath(`/businesses/${businessId}`);
@@ -52,7 +45,7 @@ export async function updatePresetAction(formData: FormData) {
     documentType: String(formData.get("documentType")),
     columns: parseColumns(formData.get("columnsJson")),
     instructionText: String(formData.get("instructionText")),
-    ignoreRules: splitLines(formData.get("ignoreRules")),
+    ignoreRules: String(formData.get("ignoreRules") ?? ""),
   });
 
   revalidatePath(`/businesses/${businessId}`);

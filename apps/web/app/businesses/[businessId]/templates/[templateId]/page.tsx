@@ -91,6 +91,10 @@ export default async function TemplateDetailPage({
             <span>{data.preset.definition.instructionText}</span>
           </div>
           <div className="info-block">
+            <strong>{messages.templateForm.ignoreRules}</strong>
+            <span>{data.preset.definition.ignoreRules || messages.review.none}</span>
+          </div>
+          <div className="info-block">
             <strong>{messages.templateDetail.currentFiles}</strong>
             {data.documents.length > 0 ? (
               <ul className="file-list">

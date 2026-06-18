@@ -371,7 +371,7 @@ export async function createPreset(args: {
   documentType: Preset["documentType"];
   columns: Preset["definition"]["columns"];
   instructionText: string;
-  ignoreRules: string[];
+  ignoreRules: string;
 }) {
   await getBusinessWorkspace(args.businessId);
 
@@ -382,13 +382,8 @@ export async function createPreset(args: {
     documentType: args.documentType,
     definition: {
       columns: args.columns,
-      classificationCategories: [],
       ignoreRules: args.ignoreRules,
       instructionText: args.instructionText,
-      dateParsingRules: [],
-      amountParsingRules: [],
-      directionRules: [],
-      payeeHints: [],
     },
     exampleNotes: "",
   });
@@ -401,7 +396,7 @@ export async function updatePreset(args: {
   documentType: Preset["documentType"];
   columns: Preset["definition"]["columns"];
   instructionText: string;
-  ignoreRules: string[];
+  ignoreRules: string;
 }) {
   const workspace = await getBusinessWorkspace(args.businessId);
   const existing = await presetStore.getById(args.businessId, args.presetId);

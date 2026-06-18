@@ -49,7 +49,26 @@ function parseValue(value: string, column: OutputColumn): TemplateCellValue {
   return value;
 }
 
-function renderValue(value: TemplateCellValue) {
+function normalizeDateValue(value: TemplateCellValue) {
+  if (typeof value !== "string") return value === null ? "" : String(value);
+
+  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) return value;
+
+  const slashMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+  if (slashMatch) {
+    const [, day, month, year] = slashMatch;
+    const normalizedYear = year.length === 2 ? `20${year}` : year;
+    return `${normalizedYear}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  return value;
+}
+
+function renderValue(value: TemplateCellValue, column: OutputColumn) {
+  if (column.type === "date") {
+    return normalizeDateValue(value);
+  }
   return value === null ? "" : String(value);
 }
 
@@ -171,7 +190,7 @@ export function ReviewClient(props: ReviewClientProps) {
                       type={inputType(column)}
                       inputMode={inputMode(column)}
                       step={inputStep(column)}
-                      value={renderValue(row.values[column.key] ?? null)}
+                      value={renderValue(row.values[column.key] ?? null, column)}
                       onChange={(event) => updateValue(row.id, column, event.target.value)}
                     />
                   </td>
