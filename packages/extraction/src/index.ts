@@ -24,7 +24,7 @@ function buildColumnSchema(column: OutputColumn) {
   return { type: ["string", "null"] };
 }
 
-function buildResponseSchema(preset: Preset) {
+export function buildResponseSchema(preset: Preset) {
   const rowProperties = Object.fromEntries(
     preset.definition.columns.map((column) => [column.key, buildColumnSchema(column)]),
   );

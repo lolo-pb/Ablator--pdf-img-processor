@@ -48,9 +48,6 @@ type TemplateFormMessages = {
   defaultInstructions: string;
   ignoreRules: string;
   defaultIgnoreRules: string;
-  defaultDateLabel: string;
-  defaultDescriptionLabel: string;
-  defaultAmountLabel: string;
   submit: string;
   cancel: string;
 };
@@ -80,16 +77,8 @@ function moveColumn(columns: DraftColumn[], index: number, direction: -1 | 1) {
   return next;
 }
 
-function getDefaultColumns(messages: TemplateFormMessages): DraftColumn[] {
-  return [
-    { id: "date", label: messages.defaultDateLabel, type: "date", required: true, customHint: "", enumOptions: [], enumDraft: "" },
-    { id: "description", label: messages.defaultDescriptionLabel, type: "text", required: true, customHint: "", enumOptions: [], enumDraft: "" },
-    { id: "total", label: messages.defaultAmountLabel, type: "money", required: true, customHint: "", enumOptions: [], enumDraft: "" },
-  ];
-}
-
-function mapInitialColumns(preset: Preset | undefined, messages: TemplateFormMessages): DraftColumn[] {
-  if (!preset) return getDefaultColumns(messages);
+function mapInitialColumns(preset: Preset | undefined): DraftColumn[] {
+  if (!preset) return [];
   return preset.definition.columns.map((column, index) => ({
     id: `${column.key}-${index}`,
     label: column.label,
@@ -108,7 +97,7 @@ export function TemplateForm({
   initialPreset,
   submitAction = createPresetAction,
 }: TemplateFormProps) {
-  const [columns, setColumns] = useState<DraftColumn[]>(() => mapInitialColumns(initialPreset, messages));
+  const [columns, setColumns] = useState<DraftColumn[]>(() => mapInitialColumns(initialPreset));
 
   const serializedColumns = useMemo(
     () =>

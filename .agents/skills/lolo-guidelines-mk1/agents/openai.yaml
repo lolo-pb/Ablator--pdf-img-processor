@@ -1,0 +1,4 @@
+interface:
+  display_name: "Lolo Guidelines"
+  short_description: "Scoped coding workflow rules"
+  default_prompt: "Use -guidelines-mk1 to make a small, verified code change."
