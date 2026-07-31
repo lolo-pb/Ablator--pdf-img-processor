@@ -355,7 +355,7 @@ export async function buildExport(args: {
     rows,
     request,
   });
-  const filename = `${preset.name.replace(/\s+/g, "-").toLowerCase()}-${job.id}.xlsx`;
+  const filename = `${request.workbookName}.xlsx`;
   await jobStore.updateJob({ ...job, status: "completed" });
 
   return { buffer, filename };
