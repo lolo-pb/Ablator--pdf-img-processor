@@ -4,14 +4,9 @@ import { useState, useTransition } from "react";
 import type { NormalizedTemplateRow, OutputColumn, Preset, TemplateCellValue } from "@bank/domain";
 
 type Messages = {
-  save: string;
-  markReady: string;
   export: string;
-  title: string;
-  reviewComplete: string;
   confidence: string;
   viewed: string;
-  reviewSaved: string;
   reviewFailed: string;
 };
 
@@ -20,7 +15,6 @@ type ReviewClientProps = {
   jobId: string;
   preset: Preset;
   initialRows: NormalizedTemplateRow[];
-  initialReviewCompleted: boolean;
   messages: Messages;
 };
 
@@ -90,7 +84,6 @@ function inputMode(column: OutputColumn) {
 export function ReviewClient(props: ReviewClientProps) {
   const [rows, setRows] = useState<EditableRow[]>(mapRows(props.initialRows));
   const [message, setMessage] = useState<string>("");
-  const [isReady, setIsReady] = useState(props.initialReviewCompleted);
   const [isPending, startTransition] = useTransition();
 
   function updateValue(id: string, column: OutputColumn, value: string) {
@@ -116,7 +109,12 @@ export function ReviewClient(props: ReviewClientProps) {
     );
   }
 
-  function save(approvalState: "in_progress" | "ready_for_export") {
+  const exportColumns = [...props.preset.definition.columns.map((column) => column.key), "confidence"];
+  const exportUrl = `/api/businesses/${props.businessId}/jobs/${props.jobId}/export?columns=${encodeURIComponent(
+    exportColumns.join(","),
+  )}&workbookName=${encodeURIComponent(props.preset.name.replace(/\s+/g, " "))}`;
+
+  function exportReview() {
     startTransition(async () => {
       setMessage("");
       const response = await fetch(`/api/businesses/${props.businessId}/jobs/${props.jobId}/review`, {
@@ -126,7 +124,6 @@ export function ReviewClient(props: ReviewClientProps) {
         },
         body: JSON.stringify({
           rows: rows.map(({ id, values, reviewStatus }) => ({ id, values, reviewStatus })),
-          approvalState,
         }),
       });
 
@@ -136,15 +133,9 @@ export function ReviewClient(props: ReviewClientProps) {
         return;
       }
 
-      setIsReady(approvalState === "ready_for_export");
-      setMessage(payload.message ?? props.messages.reviewSaved);
+      window.location.assign(exportUrl);
     });
   }
-
-  const exportColumns = [...props.preset.definition.columns.map((column) => column.key), "confidence"];
-  const exportUrl = `/api/businesses/${props.businessId}/jobs/${props.jobId}/export?columns=${encodeURIComponent(
-    exportColumns.join(","),
-  )}&workbookName=${encodeURIComponent(props.preset.name.replace(/\s+/g, " "))}`;
 
   return (
     <div className="focus-panel review-panel stack">
@@ -152,20 +143,13 @@ export function ReviewClient(props: ReviewClientProps) {
         <div className="stack tight review-toolbar__copy">
           <div className="row review-toolbar__meta">
             <span className="status-badge">{rows.length}</span>
-            {isReady ? <span className="alert-chip">{props.messages.reviewComplete}</span> : null}
           </div>
           {message ? <p className="muted review-toolbar__message">{message}</p> : null}
         </div>
         <div className="row review-toolbar__actions">
-          <button type="button" className="secondary" onClick={() => save("in_progress")} disabled={isPending}>
-            {props.messages.save}
-          </button>
-          <button type="button" onClick={() => save("ready_for_export")} disabled={isPending}>
-            {props.messages.markReady}
-          </button>
-          <a className={`button ${!isReady ? "is-disabled" : ""}`} href={isReady ? exportUrl : undefined} aria-disabled={!isReady}>
+          <button type="button" onClick={exportReview} disabled={isPending}>
             {props.messages.export}
-          </a>
+          </button>
         </div>
       </div>
 

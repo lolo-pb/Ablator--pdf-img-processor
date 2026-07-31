@@ -251,7 +251,6 @@ export const reviewPatchSchema = z.object({
       reviewStatus: rowReviewStatusSchema,
     }),
   ),
-  approvalState: z.enum(["in_progress", "ready_for_export"]),
 });
 export type ReviewPatch = z.infer<typeof reviewPatchSchema>;
 

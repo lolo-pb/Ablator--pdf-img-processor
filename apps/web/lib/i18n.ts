@@ -98,10 +98,7 @@ const dictionaries = {
     review: {
       title: "Review extracted rows",
       subtitle: "Check extracted values before exporting to Excel.",
-      save: "Save changes",
-      markReady: "Mark ready",
       export: "Export xlsx",
-      reviewComplete: "Review ready for export",
       noRows: "No extracted rows yet. Process files first.",
       confidence: "Confidence",
       viewed: "Viewed",
@@ -117,7 +114,6 @@ const dictionaries = {
       uploadedFiles: "Uploaded files",
       readMore: "Read more",
       readLess: "Show less",
-      reviewSaved: "Review changes saved.",
       reviewFailed: "Review update failed.",
     },
     actions: {
@@ -217,10 +213,7 @@ const dictionaries = {
     review: {
       title: "Revisar filas extraidas",
       subtitle: "Revisa los valores extraidos antes de exportar a Excel.",
-      save: "Guardar cambios",
-      markReady: "Marcar listo",
       export: "Exportar xlsx",
-      reviewComplete: "Revision lista para exportar",
       noRows: "Todavia no hay filas extraidas. Primero procesa archivos.",
       confidence: "Confianza",
       viewed: "Visto",
@@ -236,7 +229,6 @@ const dictionaries = {
       uploadedFiles: "Archivos cargados",
       readMore: "Leer mas",
       readLess: "Ver menos",
-      reviewSaved: "Cambios de revision guardados.",
       reviewFailed: "La revision no se pudo guardar.",
     },
     actions: {

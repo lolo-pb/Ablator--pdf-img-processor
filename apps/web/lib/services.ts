@@ -330,7 +330,7 @@ export async function updateReviewRows(args: {
   await jobStore.replaceRows(args.jobId, nextRows);
   await jobStore.updateJob({
     ...job,
-    reviewCompletedAt: parsed.approvalState === "ready_for_export" ? new Date().toISOString() : null,
+    reviewCompletedAt: null,
     status: "review_required",
   });
 }
@@ -344,10 +344,6 @@ export async function buildExport(args: {
   if (!job || job.id !== request.jobId || job.businessId !== args.businessId || job.createdBy !== user.id) {
     throw new Error("This batch is no longer active.");
   }
-  if (!job.reviewCompletedAt) {
-    throw new Error("Review must be completed before export.");
-  }
-
   const preset = await presetStore.getById(args.businessId, job.presetId);
   if (!preset) {
     throw new Error("Preset not found.");
