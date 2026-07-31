@@ -25,11 +25,11 @@ export const demoPreset: Preset = {
   documentType: "bank_summary",
   definition: {
     columns: [
-      { key: "date", label: "Date", type: "date", required: true },
-      { key: "description", label: "Description", type: "custom", required: true },
-      { key: "amount", label: "Amount", type: "money", required: true },
-      { key: "counterparty", label: "Counterparty", type: "custom", required: false },
-      { key: "reference", label: "Reference", type: "custom", required: false },
+      { key: "date", label: "Date", type: "date", required: true, customHint: "", enumOptions: [] },
+      { key: "description", label: "Description", type: "custom", required: true, customHint: "", enumOptions: [] },
+      { key: "amount", label: "Amount", type: "money", required: true, customHint: "", enumOptions: [] },
+      { key: "counterparty", label: "Counterparty", type: "custom", required: false, customHint: "", enumOptions: [] },
+      { key: "reference", label: "Reference", type: "custom", required: false, customHint: "", enumOptions: [] },
     ],
     ignoreRules: "Ignore running balances when they are not transaction rows.\nIgnore page headers and statement summaries.",
     instructionText:

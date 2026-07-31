@@ -196,8 +196,8 @@ export const supabasePresetStore: PresetStore = {
   },
   async updatePreset(input) {
     const client = getServerSupabaseClient();
-    const { data, error } = await client
-      .from("presets")
+    const presetsTable: any = client.from("presets");
+    const { data, error } = await presetsTable
       .update({
         business_id: input.businessId,
         name: input.name,
@@ -207,7 +207,7 @@ export const supabasePresetStore: PresetStore = {
         definition: input.definition,
         example_notes: input.exampleNotes,
         updated_at: new Date().toISOString(),
-      } as any)
+      })
       .eq("id", input.id)
       .eq("business_id", input.businessId)
       .select("*")
