@@ -12,12 +12,13 @@
     "typecheck": "tsc -b",
     "test": "vitest run"
   },
+  "dependencies": {
+    "typescript": "^5.9.2"
+  },
   "devDependencies": {
     "@types/node": "^24.7.0",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
-    "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }
 }
-
