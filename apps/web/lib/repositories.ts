@@ -1,14 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { extractedRowSchema, presetSchema } from "@bank/domain";
+import { presetSchema } from "@bank/domain";
 import type {
   Business,
-  ExtractedRow,
-  JobStore,
   MembershipRole,
   Preset,
   PresetStore,
-  ProcessingJob,
-  SourceDocument,
   TenantContext,
   TenantStore,
 } from "@bank/domain";
@@ -16,7 +12,6 @@ import { shouldUseSupabase } from "./runtime";
 import {
   assertSupabaseBusinessMembership,
   getSupabaseBusinessById,
-  supabaseJobStore,
   supabasePresetStore,
   supabaseTenantStore,
 } from "./supabase-data";
@@ -48,7 +43,6 @@ export const tenantStore: TenantStore = {
     }
   },
 };
-
 export const presetStore: PresetStore = {
   async listByBusiness(businessId) {
     const state = await readAppState();
@@ -91,81 +85,6 @@ export const presetStore: PresetStore = {
       };
       state.presets[index] = nextPreset;
       return nextPreset;
-    });
-  },
-};
-
-export const jobStore: JobStore = {
-  async listByBusiness(businessId) {
-    const state = await readAppState();
-    return state.jobs.filter((job) => job.businessId === businessId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  },
-  async getActiveJobForUser(userId) {
-    const state = await readAppState();
-    const jobs = state.jobs
-      .filter((job) => job.createdBy === userId)
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    return jobs[0] ?? null;
-  },
-  async getJob(businessId, jobId) {
-    const state = await readAppState();
-    return state.jobs.find((job) => job.businessId === businessId && job.id === jobId) ?? null;
-  },
-  async createJob(input) {
-    return withAppState((state) => {
-      const now = new Date().toISOString();
-      const job: ProcessingJob = {
-        ...input,
-        id: randomUUID(),
-        status: "uploaded",
-        warnings: [],
-        reviewCompletedAt: null,
-        createdAt: now,
-        updatedAt: now,
-      };
-      state.jobs.push(job);
-      return job;
-    });
-  },
-  async updateJob(job) {
-    await withAppState((state) => {
-      const index = state.jobs.findIndex((entry) => entry.id === job.id);
-      if (index < 0) {
-        throw new Error("Job not found.");
-      }
-      state.jobs[index] = { ...job, updatedAt: new Date().toISOString() };
-    });
-  },
-  async listRows(jobId) {
-    const state = await readAppState();
-    return state.rows
-      .filter((row) => row.jobId === jobId)
-      .sort((a, b) => a.rowIndex - b.rowIndex)
-      .map((row) => extractedRowSchema.parse(row));
-  },
-  async replaceRows(jobId, rows) {
-    await withAppState((state) => {
-      state.rows = state.rows.filter((row) => row.jobId !== jobId).concat(rows);
-    });
-  },
-  async clearJobData(jobId) {
-    await withAppState((state) => {
-      state.rows = state.rows.filter((row) => row.jobId !== jobId);
-      state.documents = state.documents.filter((document) => document.jobId !== jobId);
-    });
-  },
-  async listDocuments(jobId) {
-    const state = await readAppState();
-    return state.documents.filter((document) => document.jobId === jobId);
-  },
-  async addDocuments(documents) {
-    await withAppState((state) => {
-      state.documents.push(...documents);
-    });
-  },
-  async updateDocuments(jobId, documents) {
-    await withAppState((state) => {
-      state.documents = state.documents.filter((document) => document.jobId !== jobId).concat(documents);
     });
   },
 };
@@ -215,52 +134,5 @@ export const activePresetStore: PresetStore = {
   async updatePreset(input) {
     if (shouldUseSupabase()) return supabasePresetStore.updatePreset(input);
     return presetStore.updatePreset(input);
-  },
-};
-
-export const activeJobStore: JobStore = {
-  async listByBusiness(businessId) {
-    if (shouldUseSupabase()) return supabaseJobStore.listByBusiness(businessId);
-    return jobStore.listByBusiness(businessId);
-  },
-  async getActiveJobForUser(userId) {
-    if (shouldUseSupabase()) return supabaseJobStore.getActiveJobForUser(userId);
-    return jobStore.getActiveJobForUser(userId);
-  },
-  async getJob(businessId, jobId) {
-    if (shouldUseSupabase()) return supabaseJobStore.getJob(businessId, jobId);
-    return jobStore.getJob(businessId, jobId);
-  },
-  async createJob(input) {
-    if (shouldUseSupabase()) return supabaseJobStore.createJob(input);
-    return jobStore.createJob(input);
-  },
-  async updateJob(job) {
-    if (shouldUseSupabase()) return supabaseJobStore.updateJob(job);
-    return jobStore.updateJob(job);
-  },
-  async listRows(jobId) {
-    if (shouldUseSupabase()) return supabaseJobStore.listRows(jobId);
-    return jobStore.listRows(jobId);
-  },
-  async replaceRows(jobId, rows) {
-    if (shouldUseSupabase()) return supabaseJobStore.replaceRows(jobId, rows);
-    return jobStore.replaceRows(jobId, rows);
-  },
-  async clearJobData(jobId) {
-    if (shouldUseSupabase()) return supabaseJobStore.clearJobData(jobId);
-    return jobStore.clearJobData(jobId);
-  },
-  async listDocuments(jobId) {
-    if (shouldUseSupabase()) return supabaseJobStore.listDocuments(jobId);
-    return jobStore.listDocuments(jobId);
-  },
-  async addDocuments(documents) {
-    if (shouldUseSupabase()) return supabaseJobStore.addDocuments(documents);
-    return jobStore.addDocuments(documents);
-  },
-  async updateDocuments(jobId, documents) {
-    if (shouldUseSupabase()) return supabaseJobStore.updateDocuments(jobId, documents);
-    return jobStore.updateDocuments(jobId, documents);
   },
 };

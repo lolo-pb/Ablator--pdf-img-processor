@@ -12,7 +12,6 @@ type Messages = {
 
 type ReviewClientProps = {
   businessId: string;
-  jobId: string;
   preset: Preset;
   initialRows: NormalizedTemplateRow[];
   messages: Messages;
@@ -20,6 +19,7 @@ type ReviewClientProps = {
 
 type EditableRow = {
   id: string;
+  sourcePage: number;
   values: Record<string, TemplateCellValue>;
   reviewStatus: "pending" | "edited" | "approved";
   confidence: number;
@@ -28,6 +28,7 @@ type EditableRow = {
 function mapRows(rows: NormalizedTemplateRow[]): EditableRow[] {
   return rows.map((row) => ({
     id: row.id,
+    sourcePage: row.sourcePage,
     values: row.values,
     reviewStatus: row.reviewStatus,
     confidence: row.confidence,
@@ -110,30 +111,32 @@ export function ReviewClient(props: ReviewClientProps) {
   }
 
   const exportColumns = [...props.preset.definition.columns.map((column) => column.key), "confidence"];
-  const exportUrl = `/api/businesses/${props.businessId}/jobs/${props.jobId}/export?columns=${encodeURIComponent(
-    exportColumns.join(","),
-  )}&workbookName=${encodeURIComponent(props.preset.name.replace(/\s+/g, " "))}`;
-
   function exportReview() {
     startTransition(async () => {
       setMessage("");
-      const response = await fetch(`/api/businesses/${props.businessId}/jobs/${props.jobId}/review`, {
+      const response = await fetch(`/api/businesses/${props.businessId}/templates/${props.preset.id}/export`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          rows: rows.map(({ id, values, reviewStatus }) => ({ id, values, reviewStatus })),
+          rows,
+          selectedColumns: exportColumns,
+          workbookName: props.preset.name.replace(/\s+/g, " "),
         }),
       });
 
-      const payload = (await response.json()) as { message?: string; error?: string };
       if (!response.ok) {
-        setMessage(payload.error ?? props.messages.reviewFailed);
+        setMessage(props.messages.reviewFailed);
         return;
       }
 
-      window.location.assign(exportUrl);
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${props.preset.name}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
     });
   }
 

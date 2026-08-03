@@ -14,7 +14,17 @@ export async function readAppState(): Promise<AppState> {
   await ensureDataDir();
   try {
     const raw = await readFile(statePath, "utf8");
-    return JSON.parse(raw) as AppState;
+    const parsed = JSON.parse(raw) as AppState & Record<string, unknown>;
+    const state: AppState = {
+      businesses: parsed.businesses ?? [],
+      users: parsed.users ?? [],
+      memberships: parsed.memberships ?? [],
+      presets: parsed.presets ?? [],
+    };
+    if ("jobs" in parsed || "documents" in parsed || "rows" in parsed || "storagePolicies" in parsed) {
+      await writeAppState(state);
+    }
+    return state;
   } catch {
     await writeAppState(initialState);
     return initialState;
@@ -32,4 +42,3 @@ export async function withAppState<T>(updater: (state: AppState) => Promise<T> |
   await writeAppState(state);
   return result;
 }
-

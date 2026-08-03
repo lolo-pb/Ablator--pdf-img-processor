@@ -4,11 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { outputColumnSchema } from "@bank/domain";
 import {
-  createOrReplaceActiveBatch,
   createPreset,
-  getReviewRoute,
   getTemplateRoute,
-  processJob,
   updatePreset,
 } from "../lib/services";
 
@@ -19,7 +16,6 @@ function parseColumns(value: FormDataEntryValue | null) {
   }
   return raw.map((column) => outputColumnSchema.parse(column));
 }
-
 export async function createPresetAction(formData: FormData) {
   const businessId = String(formData.get("businessId"));
   const preset = await createPreset({
@@ -51,26 +47,4 @@ export async function updatePresetAction(formData: FormData) {
   revalidatePath(`/businesses/${businessId}`);
   revalidatePath(getTemplateRoute(businessId, preset.id));
   redirect(getTemplateRoute(businessId, preset.id));
-}
-
-export async function processTemplateAction(formData: FormData) {
-  const businessId = String(formData.get("businessId"));
-  const presetId = String(formData.get("presetId"));
-  const jobIdValue = formData.get("jobId");
-  const fileEntries = formData.getAll("documents");
-  const files = fileEntries.filter((entry): entry is File => entry instanceof File && entry.size > 0);
-
-  const job = await createOrReplaceActiveBatch({
-    businessId,
-    presetId,
-    jobId: typeof jobIdValue === "string" && jobIdValue.length > 0 ? jobIdValue : null,
-    files,
-  });
-
-  const shouldProcess = files.length > 0 || job.status === "uploaded" || job.status === "failed";
-  if (shouldProcess) {
-    await processJob(businessId, job.id);
-  }
-  revalidatePath(getTemplateRoute(businessId, presetId, job.id));
-  redirect(getReviewRoute(businessId, job.id));
 }

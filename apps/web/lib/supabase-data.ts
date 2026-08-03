@@ -1,14 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { extractedRowSchema, presetSchema } from "@bank/domain";
+import { presetSchema } from "@bank/domain";
 import type {
   Business,
-  ExtractedRow,
-  JobStore,
   MembershipRole,
   Preset,
   PresetStore,
-  ProcessingJob,
-  SourceDocument,
   TenantContext,
   TenantStore,
 } from "@bank/domain";
@@ -37,43 +33,6 @@ function mapPreset(row: any): Preset {
     exampleNotes: row.example_notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  });
-}
-
-function mapJob(row: any): ProcessingJob {
-  return {
-    id: row.id,
-    businessId: row.business_id,
-    presetId: row.preset_id,
-    createdBy: row.created_by,
-    status: row.status,
-    warnings: row.warnings ?? [],
-    reviewCompletedAt: row.review_completed_at,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function mapDocument(row: any): SourceDocument {
-  return {
-    id: row.id,
-    jobId: row.job_id,
-    filename: row.filename,
-    mimeType: row.mime_type,
-    pageCount: row.page_count,
-    storagePath: row.storage_path,
-    status: row.status,
-    deletionScheduledAt: row.deletion_scheduled_at,
-  };
-}
-
-function mapRow(row: any): ExtractedRow {
-  return extractedRowSchema.parse({
-    id: row.id,
-    jobId: row.job_id,
-    rowIndex: row.row_index,
-    rawFields: row.raw_fields,
-    normalized: row.normalized,
   });
 }
 
@@ -214,122 +173,6 @@ export const supabasePresetStore: PresetStore = {
       .single();
     if (error) throw new Error(`Supabase preset update failed: ${error.message}`);
     return mapPreset(data);
-  },
-};
-
-export const supabaseJobStore: JobStore = {
-  async listByBusiness(businessId) {
-    const client = getServerSupabaseClient();
-    const { data, error } = await client.from("processing_jobs").select("*").eq("business_id", businessId).order("created_at", { ascending: false });
-    if (error) throw new Error(`Supabase jobs lookup failed: ${error.message}`);
-    return (data ?? []).map(mapJob);
-  },
-  async getActiveJobForUser(userId) {
-    const client = getServerSupabaseClient();
-    const { data, error } = await client
-      .from("processing_jobs")
-      .select("*")
-      .eq("created_by", userId)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) throw new Error(`Supabase active job lookup failed: ${error.message}`);
-    return data ? mapJob(data) : null;
-  },
-  async getJob(businessId, jobId) {
-    const client = getServerSupabaseClient();
-    const { data, error } = await client.from("processing_jobs").select("*").eq("business_id", businessId).eq("id", jobId).maybeSingle();
-    if (error) throw new Error(`Supabase job lookup failed: ${error.message}`);
-    return data ? mapJob(data) : null;
-  },
-  async createJob(input) {
-    const client = getServerSupabaseClient();
-    const now = new Date().toISOString();
-    const { data, error } = await client
-      .from("processing_jobs")
-      .insert({
-        id: randomUUID(),
-        business_id: input.businessId,
-        preset_id: input.presetId,
-        created_by: input.createdBy,
-        status: "uploaded",
-        warnings: [],
-        review_completed_at: null,
-        created_at: now,
-        updated_at: now,
-      } as any)
-      .select("*")
-      .single();
-    if (error) throw new Error(`Supabase job creation failed: ${error.message}`);
-    return mapJob(data);
-  },
-  async updateJob(job) {
-    const client = getServerSupabaseClient();
-    const processingJobsTable: any = client.from("processing_jobs");
-    const { error } = await processingJobsTable.update({
-      business_id: job.businessId,
-      preset_id: job.presetId,
-      created_by: job.createdBy,
-      status: job.status,
-      warnings: job.warnings,
-      review_completed_at: job.reviewCompletedAt,
-      updated_at: new Date().toISOString(),
-    }).eq("id", job.id);
-    if (error) throw new Error(`Supabase job update failed: ${error.message}`);
-  },
-  async listRows(jobId) {
-    const client = getServerSupabaseClient();
-    const { data, error } = await client.from("extracted_rows").select("*").eq("job_id", jobId).order("row_index", { ascending: true });
-    if (error) throw new Error(`Supabase rows lookup failed: ${error.message}`);
-    return (data ?? []).map(mapRow);
-  },
-  async replaceRows(jobId, rows) {
-    const client = getServerSupabaseClient();
-    const { error: clearError } = await client.from("extracted_rows").delete().eq("job_id", jobId);
-    if (clearError) throw new Error(`Supabase rows clear failed: ${clearError.message}`);
-    if (!rows.length) return;
-    const { error } = await client.from("extracted_rows").insert(rows.map((row) => ({
-      id: row.id,
-      job_id: row.jobId,
-      row_index: row.rowIndex,
-      raw_fields: row.rawFields,
-      normalized: row.normalized,
-    })) as any);
-    if (error) throw new Error(`Supabase rows insert failed: ${error.message}`);
-  },
-  async clearJobData(jobId) {
-    const client = getServerSupabaseClient();
-    const { error: rowsError } = await client.from("extracted_rows").delete().eq("job_id", jobId);
-    if (rowsError) throw new Error(`Supabase rows clear failed: ${rowsError.message}`);
-    const { error: documentsError } = await client.from("source_documents").delete().eq("job_id", jobId);
-    if (documentsError) throw new Error(`Supabase documents clear failed: ${documentsError.message}`);
-  },
-  async listDocuments(jobId) {
-    const client = getServerSupabaseClient();
-    const { data, error } = await client.from("source_documents").select("*").eq("job_id", jobId);
-    if (error) throw new Error(`Supabase documents lookup failed: ${error.message}`);
-    return (data ?? []).map(mapDocument);
-  },
-  async addDocuments(documents) {
-    const client = getServerSupabaseClient();
-    if (!documents.length) return;
-    const { error } = await client.from("source_documents").insert(documents.map((document) => ({
-      id: document.id,
-      job_id: document.jobId,
-      filename: document.filename,
-      mime_type: document.mimeType,
-      page_count: document.pageCount,
-      storage_path: document.storagePath,
-      status: document.status,
-      deletion_scheduled_at: document.deletionScheduledAt,
-    })) as any);
-    if (error) throw new Error(`Supabase documents insert failed: ${error.message}`);
-  },
-  async updateDocuments(jobId, documents) {
-    const client = getServerSupabaseClient();
-    const { error: clearError } = await client.from("source_documents").delete().eq("job_id", jobId);
-    if (clearError) throw new Error(`Supabase documents clear failed: ${clearError.message}`);
-    await this.addDocuments(documents);
   },
 };
 

@@ -14,14 +14,4 @@ export const initialState: AppState = {
   users: [demoUser],
   memberships: [demoMembership],
   presets: [demoPreset],
-  jobs: [],
-  documents: [],
-  rows: [],
-  storagePolicies: [
-    {
-      deleteSourceAfterExport: true,
-      deleteSourceAfterFailure: true,
-      retentionDays: 0,
-    },
-  ],
 };

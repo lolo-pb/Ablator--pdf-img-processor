@@ -6,7 +6,7 @@ import {
   type ExtractionResult,
   type OutputColumn,
   type Preset,
-  type SourceDocument,
+  type InMemoryDocument,
   type TemplateCellValue,
 } from "@bank/domain";
 
@@ -164,7 +164,7 @@ function normalizeResponseRows(args: {
   });
 }
 
-function buildMockResult(preset: Preset, documents: SourceDocument[]): ExtractionResult {
+function buildMockResult(preset: Preset, documents: InMemoryDocument[]): ExtractionResult {
   const rows = documents.flatMap((document, documentIndex) =>
     Array.from({ length: 3 }, (_, rowIndex) => {
       const values = Object.fromEntries(
@@ -184,7 +184,7 @@ function buildMockResult(preset: Preset, documents: SourceDocument[]): Extractio
       );
 
       return normalizedTemplateRowSchema.parse({
-        id: `${document.id}-row-${rowIndex}`,
+        id: `document-${documentIndex}-row-${rowIndex}`,
         sourcePage: documentIndex,
         values,
         confidence: 0.72,
@@ -211,11 +211,9 @@ function getGeminiClient(apiKey: string) {
 
 async function uploadDocumentToGemini(args: {
   client: GoogleGenAI;
-  document: SourceDocument;
-  readDocument: (storagePath: string) => Promise<Buffer>;
+  document: InMemoryDocument;
 }) {
-  const buffer = await args.readDocument(args.document.storagePath);
-  const blob = new Blob([new Uint8Array(buffer)], {
+  const blob = new Blob([new Uint8Array(args.document.content)], {
     type: args.document.mimeType || "application/octet-stream",
   });
 
@@ -231,8 +229,7 @@ async function uploadDocumentToGemini(args: {
 async function runGeminiExtraction(args: {
   apiKey: string;
   preset: Preset;
-  documents: SourceDocument[];
-  readDocument: (storagePath: string) => Promise<Buffer>;
+  documents: InMemoryDocument[];
 }): Promise<ExtractionResult> {
   const client = getGeminiClient(args.apiKey);
   const parts: Array<string | ReturnType<typeof createPartFromUri>> = [
@@ -243,7 +240,6 @@ async function runGeminiExtraction(args: {
     const uploaded = await uploadDocumentToGemini({
       client,
       document,
-      readDocument: args.readDocument,
     });
 
     if (!uploaded.uri || !uploaded.mimeType) {
@@ -292,7 +288,7 @@ async function runGeminiExtraction(args: {
 
 export function createExtractionProvider(): ExtractionProvider {
   return {
-    async extractTransactions({ preset, documents, readDocument }) {
+    async extractTransactions({ preset, documents }) {
       if (!process.env.GEMINI_API_KEY) {
         return buildMockResult(preset, documents);
       }
@@ -301,7 +297,6 @@ export function createExtractionProvider(): ExtractionProvider {
         apiKey: process.env.GEMINI_API_KEY,
         preset,
         documents,
-        readDocument,
       });
     },
   };

@@ -1,6 +1,6 @@
 # Bank Reconciliation Extraction Platform
 
-Web-first, desktop-portable document extraction platform for bank summaries, reconciliations, and spending classification.
+Web-first, desktop-portable document extraction platform for bank summaries, reconciliations, and spending classification. Uploaded documents and extracted rows exist only during the active browser session; they are not stored by the app.
 
 ## Workspace layout
 
@@ -40,10 +40,11 @@ Recommended flow:
 npx supabase db push
 ```
 
-That will apply the migration that creates:
+That will apply the migrations that create:
 
-- the app tables
+- the business, user, membership, and template tables
 - permissive live-test RLS policies
-- the source/export storage buckets
+
+The app does not create source or export storage objects. Processing and export buffers are held in memory for the request, and an in-progress review is lost when the user reloads or leaves the page.
 
 After that, restart `npm run dev` and the app will use Supabase-backed data and file storage automatically when the public Supabase env vars are present.

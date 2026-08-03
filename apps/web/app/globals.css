@@ -625,6 +625,7 @@ button:disabled {
   display: grid;
   gap: 20px;
   grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+  align-items: start;
 }
 
 .review-layout {

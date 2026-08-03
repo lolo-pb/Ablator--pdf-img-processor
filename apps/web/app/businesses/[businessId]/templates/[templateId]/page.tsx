@@ -1,34 +1,20 @@
 import Link from "next/link";
-import type { SourceDocument } from "@bank/domain";
-import { processTemplateAction } from "../../../../actions";
 import { DashboardShell } from "../../../../components/dashboard-shell";
-import { UploadPicker } from "../../../../components/upload-picker";
+import { SessionProcessor } from "../../../../components/session-processor";
 import { getLocale, getMessages } from "../../../../../lib/i18n";
-import { getTemplateDetailData, getReviewRoute } from "../../../../../lib/services";
+import { getTemplateDetailData } from "../../../../../lib/services";
 
-export default async function TemplateDetailPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ businessId: string; templateId: string }>;
-  searchParams: Promise<{ jobId?: string }>;
-}) {
+export default async function TemplateDetailPage({ params }: { params: Promise<{ businessId: string; templateId: string }> }) {
   const { businessId, templateId } = await params;
-  const { jobId } = await searchParams;
   const locale = await getLocale();
   const messages = await getMessages(locale);
-  const data = await getTemplateDetailData({ businessId, templateId, jobId });
-  const reviewJob =
-    data.job &&
-    (data.job.status === "review_required" || data.job.status === "completed")
-      ? data.job
-      : null;
+  const data = await getTemplateDetailData({ businessId, templateId });
 
   return (
     <DashboardShell
       locale={locale}
       messages={messages}
-      currentPath={jobId ? `/businesses/${businessId}/templates/${templateId}?jobId=${jobId}` : `/businesses/${businessId}/templates/${templateId}`}
+      currentPath={`/businesses/${businessId}/templates/${templateId}`}
       section={data.business.name}
       title={data.preset.name}
       subtitle={messages.templateDetail.uploadBody}
@@ -36,80 +22,26 @@ export default async function TemplateDetailPage({
         { label: messages.nav.businesses, href: "/", active: false },
         { label: messages.nav.templates, href: `/businesses/${businessId}`, active: false },
         { label: data.preset.name, href: `/businesses/${businessId}/templates/${templateId}`, active: true },
-        ...(reviewJob ? [{ label: messages.nav.review, href: getReviewRoute(businessId, reviewJob.id), active: false }] : []),
       ]}
     >
       <section className="template-layout">
-        <article className="focus-panel upload-panel">
-          <div className="stack tight">
-            <h2>{messages.templateDetail.uploadTitle}</h2>
-            <p>{messages.templateDetail.uploadBody}</p>
-            <p className="muted">{messages.templateDetail.replaceHint}</p>
-          </div>
-
-          <form action={processTemplateAction} className="stack">
-            <input type="hidden" name="businessId" value={businessId} />
-            <input type="hidden" name="presetId" value={templateId} />
-            <input type="hidden" name="jobId" value={data.job?.id ?? ""} />
-            <UploadPicker
-              name="documents"
-              accept=".pdf,image/*"
-              multiple={true}
-              required={!data.job}
-              labels={{
-                browseFiles: messages.templateDetail.browseFiles,
-                dropPrompt: messages.templateDetail.dropPrompt,
-                fileTypesHint: messages.templateDetail.fileTypesHint,
-                removeFile: messages.templateDetail.removeFile,
-                selectedFiles: messages.templateDetail.selectedFiles,
-              }}
-            />
-            <button type="submit">{messages.templateDetail.process}</button>
-          </form>
-        </article>
-
+        <SessionProcessor
+          businessId={businessId}
+          preset={data.preset}
+          uploadLabels={{ ...messages.templateDetail, process: messages.templateDetail.process }}
+        />
         <article className="focus-panel info-panel stack">
           <div className="template-info-header">
             <div className="template-info-header__row">
               <span className="status-badge">{messages.templateDetail.templateInfo}</span>
-              <Link className="button secondary template-info-header__action" href={`/businesses/${businessId}/templates/${templateId}/edit`}>
-                Edit
-              </Link>
+              <Link className="button secondary template-info-header__action" href={`/businesses/${businessId}/templates/${templateId}/edit`}>Edit</Link>
             </div>
             <h2>{messages.templateDetail.templateInfo}</h2>
           </div>
-          <div className="info-block">
-            <strong>{messages.business.documentType}</strong>
-            <span>{data.preset.documentType}</span>
-          </div>
-          <div className="info-block">
-            <strong>{messages.business.columns}</strong>
-            <span>{data.preset.definition.columns.map((column) => column.label).join(", ")}</span>
-          </div>
-          <div className="info-block">
-            <strong>{messages.templateForm.instructions}</strong>
-            <span>{data.preset.definition.instructionText}</span>
-          </div>
-          <div className="info-block">
-            <strong>{messages.templateForm.ignoreRules}</strong>
-            <span>{data.preset.definition.ignoreRules || messages.review.none}</span>
-          </div>
-          <div className="info-block">
-            <strong>{messages.templateDetail.currentFiles}</strong>
-            {data.documents.length > 0 ? (
-              <ul className="file-list">
-                {data.documents.map((document: SourceDocument) => (
-                  <li key={document.id}>
-                    <span>{document.filename}</span>
-                    <small>{document.status}</small>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <span>{messages.templateDetail.noFiles}</span>
-            )}
-          </div>
-          {data.job?.status === "review_required" ? <div className="alert-chip">{messages.templateDetail.latestReview}</div> : null}
+          <div className="info-block"><strong>{messages.business.documentType}</strong><span>{data.preset.documentType}</span></div>
+          <div className="info-block"><strong>{messages.business.columns}</strong><span>{data.preset.definition.columns.map((column) => column.label).join(", ")}</span></div>
+          <div className="info-block"><strong>{messages.templateForm.instructions}</strong><span>{data.preset.definition.instructionText}</span></div>
+          <div className="info-block"><strong>{messages.templateForm.ignoreRules}</strong><span>{data.preset.definition.ignoreRules || messages.review.none}</span></div>
         </article>
       </section>
     </DashboardShell>

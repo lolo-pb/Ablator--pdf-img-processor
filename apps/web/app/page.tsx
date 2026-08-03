@@ -19,7 +19,7 @@ export default async function HomePage() {
       navItems={[{ label: messages.nav.businesses, href: "/", active: true }]}
     >
       <section className="card-grid">
-        {data.businesses.map(({ business, role, templates, jobs }) => (
+        {data.businesses.map(({ business, role, templates }) => (
           <article key={business.id} className="dashboard-card">
             <div className="card-topline">
               <span className="status-badge">{role}</span>
@@ -35,10 +35,6 @@ export default async function HomePage() {
               <div>
                 <strong>{templates.length}</strong>
                 <span>{messages.home.templateCount}</span>
-              </div>
-              <div>
-                <strong>{jobs.length}</strong>
-                <span>{messages.home.jobCount}</span>
               </div>
             </div>
             <Link className="button" href={`/businesses/${business.id}`}>

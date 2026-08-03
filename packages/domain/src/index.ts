@@ -1,4 +1,4 @@
-import { pgEnum, pgTable, text, timestamp, uuid, jsonb, integer, boolean } from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, text, timestamp, uuid, jsonb, integer } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 export const membershipRoleSchema = z.enum(["owner", "admin", "member"]);
@@ -6,19 +6,6 @@ export type MembershipRole = z.infer<typeof membershipRoleSchema>;
 
 export const documentTypeSchema = z.string().min(1);
 export type DocumentType = z.infer<typeof documentTypeSchema>;
-
-export const processingJobStatusSchema = z.enum([
-  "uploaded",
-  "queued",
-  "processing",
-  "review_required",
-  "completed",
-  "failed",
-]);
-export type ProcessingJobStatus = z.infer<typeof processingJobStatusSchema>;
-
-export const sourceDocumentStatusSchema = z.enum(["stored", "deleted"]);
-export type SourceDocumentStatus = z.infer<typeof sourceDocumentStatusSchema>;
 
 export const rowReviewStatusSchema = z.enum(["pending", "edited", "approved"]);
 export type RowReviewStatus = z.infer<typeof rowReviewStatusSchema>;
@@ -163,48 +150,11 @@ export const extractionResultSchema = z.object({
 });
 export type ExtractionResult = z.infer<typeof extractionResultSchema>;
 
-export const sourceDocumentSchema = z.object({
-  id: z.string().min(1),
-  jobId: z.string().min(1),
-  filename: z.string().min(1),
-  mimeType: z.string().min(1),
-  pageCount: z.number().int().positive(),
-  storagePath: z.string().min(1),
-  status: sourceDocumentStatusSchema,
-  deletionScheduledAt: z.string().nullable().default(null),
-});
-export type SourceDocument = z.infer<typeof sourceDocumentSchema>;
-
-export const processingJobSchema = z.object({
-  id: z.string().min(1),
-  businessId: z.string().min(1),
-  presetId: z.string().min(1),
-  createdBy: z.string().min(1),
-  status: processingJobStatusSchema,
-  createdAt: z.string().min(1),
-  updatedAt: z.string().min(1),
-  reviewCompletedAt: z.string().nullable().default(null),
-  warnings: z.array(z.string()).default([]),
-});
-export type ProcessingJob = z.infer<typeof processingJobSchema>;
-
-export const extractedRowSchema = z.object({
-  id: z.string().min(1),
-  jobId: z.string().min(1),
-  rowIndex: z.number().int().nonnegative(),
-  rawFields: z.record(z.string(), z.unknown()),
-  normalized: normalizedTemplateRowSchema,
-});
-export type ExtractedRow = z.infer<typeof extractedRowSchema>;
-
-export const exportArtifactSchema = z.object({
-  id: z.string().min(1),
-  jobId: z.string().min(1),
-  format: z.enum(["xlsx", "csv"]),
-  generatedAt: z.string().min(1),
-  downloadPath: z.string().min(1),
-});
-export type ExportArtifact = z.infer<typeof exportArtifactSchema>;
+export type InMemoryDocument = {
+  filename: string;
+  mimeType: string;
+  content: Buffer;
+};
 
 export const auditEventSchema = z.object({
   id: z.string().min(1),
@@ -243,19 +193,7 @@ export const businessMembershipSchema = z.object({
 });
 export type BusinessMembership = z.infer<typeof businessMembershipSchema>;
 
-export const reviewPatchSchema = z.object({
-  rows: z.array(
-    z.object({
-      id: z.string().min(1),
-      values: z.record(z.string(), templateCellValueSchema),
-      reviewStatus: rowReviewStatusSchema,
-    }),
-  ),
-});
-export type ReviewPatch = z.infer<typeof reviewPatchSchema>;
-
 export const exportRequestSchema = z.object({
-  jobId: z.string().min(1),
   format: z.enum(["xlsx", "csv"]).default("xlsx"),
   selectedColumns: z.array(z.string()).min(1),
   workbookName: z.string().min(1),
@@ -268,13 +206,6 @@ export const tenantContextSchema = z.object({
   role: membershipRoleSchema,
 });
 export type TenantContext = z.infer<typeof tenantContextSchema>;
-
-export const storagePolicySchema = z.object({
-  deleteSourceAfterExport: z.boolean().default(true),
-  deleteSourceAfterFailure: z.boolean().default(true),
-  retentionDays: z.number().int().nonnegative().default(0),
-});
-export type StoragePolicy = z.infer<typeof storagePolicySchema>;
 
 export interface AuthProvider {
   getCurrentUser(): Promise<User>;
@@ -292,31 +223,10 @@ export interface PresetStore {
   updatePreset(preset: Preset): Promise<Preset>;
 }
 
-export interface JobStore {
-  listByBusiness(businessId: string): Promise<ProcessingJob[]>;
-  getActiveJobForUser(userId: string): Promise<ProcessingJob | null>;
-  getJob(businessId: string, jobId: string): Promise<ProcessingJob | null>;
-  createJob(input: Omit<ProcessingJob, "id" | "createdAt" | "updatedAt" | "status" | "warnings" | "reviewCompletedAt">): Promise<ProcessingJob>;
-  updateJob(job: ProcessingJob): Promise<void>;
-  listRows(jobId: string): Promise<ExtractedRow[]>;
-  replaceRows(jobId: string, rows: ExtractedRow[]): Promise<void>;
-  clearJobData(jobId: string): Promise<void>;
-  listDocuments(jobId: string): Promise<SourceDocument[]>;
-  addDocuments(documents: SourceDocument[]): Promise<void>;
-  updateDocuments(jobId: string, documents: SourceDocument[]): Promise<void>;
-}
-
-export interface FileStore {
-  writeSourceDocument(jobId: string, filename: string, buffer: Buffer): Promise<{ storagePath: string }>;
-  readSourceDocument(storagePath: string): Promise<Buffer>;
-  deleteFile(path: string): Promise<void>;
-}
-
 export interface ExtractionProvider {
   extractTransactions(input: {
     preset: Preset;
-    documents: SourceDocument[];
-    readDocument: (storagePath: string) => Promise<Buffer>;
+    documents: InMemoryDocument[];
   }): Promise<ExtractionResult>;
 }
 
@@ -328,7 +238,6 @@ export const businessesTable = pgTable("businesses", {
   retentionPolicyDays: integer("retention_policy_days").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
 });
-
 export const usersTable = pgTable("users", {
   id: uuid("id").primaryKey(),
   name: text("name").notNull(),
@@ -358,42 +267,4 @@ export const presetsTable = pgTable("presets", {
   exampleNotes: text("example_notes").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
-});
-
-export const jobsTable = pgTable("processing_jobs", {
-  id: uuid("id").primaryKey(),
-  businessId: uuid("business_id").notNull(),
-  presetId: uuid("preset_id").notNull(),
-  createdBy: uuid("created_by").notNull(),
-  status: text("status").notNull(),
-  warnings: jsonb("warnings").notNull(),
-  reviewCompletedAt: timestamp("review_completed_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
-});
-
-export const sourceDocumentsTable = pgTable("source_documents", {
-  id: uuid("id").primaryKey(),
-  jobId: uuid("job_id").notNull(),
-  filename: text("filename").notNull(),
-  mimeType: text("mime_type").notNull(),
-  pageCount: integer("page_count").notNull(),
-  storagePath: text("storage_path").notNull(),
-  status: text("status").notNull(),
-  deletionScheduledAt: timestamp("deletion_scheduled_at", { withTimezone: true }),
-});
-
-export const extractedRowsTable = pgTable("extracted_rows", {
-  id: uuid("id").primaryKey(),
-  jobId: uuid("job_id").notNull(),
-  rowIndex: integer("row_index").notNull(),
-  rawFields: jsonb("raw_fields").notNull(),
-  normalized: jsonb("normalized").notNull(),
-});
-
-export const storagePolicyTable = pgTable("storage_policies", {
-  businessId: uuid("business_id").primaryKey(),
-  deleteSourceAfterExport: boolean("delete_source_after_export").notNull().default(true),
-  deleteSourceAfterFailure: boolean("delete_source_after_failure").notNull().default(true),
-  retentionDays: integer("retention_days").notNull().default(0),
 });
