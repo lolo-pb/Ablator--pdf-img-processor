@@ -119,6 +119,8 @@ const dictionaries = {
     actions: {
       cancel: "Cancel",
       role: "Role",
+      edit: "Edit",
+      open: "Open",
     },
   },
   es: {
@@ -234,6 +236,8 @@ const dictionaries = {
     actions: {
       cancel: "Cancelar",
       role: "Rol",
+      edit: "Editar",
+      open: "Abrir",
     },
   },
 } as const;

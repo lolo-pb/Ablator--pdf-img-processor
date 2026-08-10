@@ -45,6 +45,9 @@ export default async function BusinessPage({
         <section className="card-grid template-grid">
           {workspace.templates.map((template) => (
             <article key={template.id} className="dashboard-card template-card file-card">
+              <div className="file-card__icon" aria-hidden="true">
+                <span>DOC</span>
+              </div>
               <div className="stack tight">
                 <h2>{template.name}</h2>
                 <p>{template.documentType}</p>
@@ -59,10 +62,11 @@ export default async function BusinessPage({
               </div>
               <div className="template-card__actions">
                 <Link className="button secondary" href={`/businesses/${businessId}/templates/${template.id}/edit`}>
-                  {messages.nav.editTemplate}
+                  {messages.actions.edit}
                 </Link>
-                <Link className="button" href={`/businesses/${businessId}/templates/${template.id}`}>
-                  {messages.business.openTemplate}
+                <Link className="button button--forward" href={`/businesses/${businessId}/templates/${template.id}`}>
+                  {messages.actions.open}
+                  <span aria-hidden="true">→</span>
                 </Link>
               </div>
             </article>

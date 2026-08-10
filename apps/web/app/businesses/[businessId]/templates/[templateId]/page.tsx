@@ -36,7 +36,6 @@ export default async function TemplateDetailPage({ params }: { params: Promise<{
               <span className="status-badge">{messages.templateDetail.templateInfo}</span>
               <Link className="button secondary template-info-header__action" href={`/businesses/${businessId}/templates/${templateId}/edit`}>Edit</Link>
             </div>
-            <h2>{messages.templateDetail.templateInfo}</h2>
           </div>
           <div className="info-block"><strong>{messages.business.documentType}</strong><span>{data.preset.documentType}</span></div>
           <div className="info-block"><strong>{messages.business.columns}</strong><span>{data.preset.definition.columns.map((column) => column.label).join(", ")}</span></div>

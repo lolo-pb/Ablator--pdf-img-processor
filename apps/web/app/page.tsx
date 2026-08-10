@@ -22,7 +22,7 @@ export default async function HomePage() {
         {data.businesses.map(({ business, role, templates }) => (
           <article key={business.id} className="dashboard-card">
             <div className="card-topline">
-              <span className="status-badge">{role}</span>
+              <span className="card-symbol" aria-hidden="true">{business.name.slice(0, 1).toUpperCase()}</span>
               <span className="soft-label">
                 {templates.length} {messages.home.templateCount}
               </span>
@@ -36,9 +36,14 @@ export default async function HomePage() {
                 <strong>{templates.length}</strong>
                 <span>{messages.home.templateCount}</span>
               </div>
+              <div>
+                <strong className="card-metrics__role">{role}</strong>
+                <span>{messages.actions.role}</span>
+              </div>
             </div>
-            <Link className="button" href={`/businesses/${business.id}`}>
+            <Link className="button button--forward" href={`/businesses/${business.id}`}>
               {messages.home.openWorkspace}
+              <span aria-hidden="true">→</span>
             </Link>
           </article>
         ))}
