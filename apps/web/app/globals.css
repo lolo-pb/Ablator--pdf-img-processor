@@ -355,6 +355,11 @@ p,
   box-shadow: 0 14px 24px rgba(41, 82, 227, 0.24);
 }
 
+.file-card:hover .button.secondary,
+.file-card:focus-within .button.secondary {
+  box-shadow: none;
+}
+
 .template-card__actions {
   margin-top: auto;
   display: grid;
@@ -1672,21 +1677,22 @@ p {
 
 .button,
 button {
-  min-height: 42px;
-  padding: 10px 16px;
+  min-height: 46px;
+  padding: 12px 18px;
   border: 1px solid transparent;
-  border-radius: 999px;
-  background: var(--primary);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #2952e3 0%, #1737b8 100%);
   color: white;
   font-weight: 620;
   letter-spacing: -0.005em;
   line-height: 1.15;
-  box-shadow: none;
+  box-shadow: 0 12px 24px rgba(41, 82, 227, 0.22);
   transition:
     background-color 150ms ease-out,
     border-color 150ms ease-out,
     box-shadow 180ms ease-out,
     color 150ms ease-out,
+    filter 150ms ease-out,
     opacity 150ms ease-out,
     transform 100ms ease-out;
 }
@@ -1703,9 +1709,9 @@ button {
 .button:focus-visible,
 button:hover,
 button:focus-visible {
-  background: #0077ed;
-  filter: none;
-  box-shadow: 0 7px 18px rgba(0, 113, 227, 0.2);
+  background: linear-gradient(180deg, #2952e3 0%, #1737b8 100%);
+  filter: brightness(1.06);
+  box-shadow: 0 14px 26px rgba(41, 82, 227, 0.26);
 }
 
 .button:active,
@@ -1716,9 +1722,9 @@ button:active {
 
 .button.secondary,
 button.secondary {
-  border-color: var(--line);
-  background: rgba(118, 118, 128, 0.085);
-  color: var(--ink);
+  border-color: #d5def7;
+  background: #fff;
+  color: #1737b8;
   box-shadow: none;
 }
 
@@ -1726,8 +1732,9 @@ button.secondary {
 .button.secondary:focus-visible,
 button.secondary:hover,
 button.secondary:focus-visible {
-  border-color: var(--line-strong);
-  background: rgba(118, 118, 128, 0.14);
+  border-color: #b9c8f4;
+  background: #f8faff;
+  filter: none;
   box-shadow: none;
 }
 
@@ -1853,7 +1860,7 @@ button:disabled {
 }
 
 .template-card__actions {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
@@ -2349,4 +2356,99 @@ input[type="checkbox"] {
   textarea {
     border-color: var(--line);
   }
+}
+
+/* Original navy palette on the newer responsive sidebar */
+.dashboard-sidebar {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, #19348f 0%, #12266e 100%);
+  color: #fff;
+}
+
+.dashboard-sidebar::after {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.brand-badge {
+  background: rgba(255, 255, 255, 0.95);
+  color: #19348f;
+  box-shadow:
+    0 8px 22px rgba(5, 16, 58, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.brand-copy strong {
+  color: #fff;
+}
+
+.brand-copy span,
+.brand-copy .brand-copy__subtitle {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.brand-copy .brand-copy__subtitle {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.sidebar-link {
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.sidebar-link__indicator {
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.sidebar-link__chevron {
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.sidebar-link:hover,
+.sidebar-link:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.sidebar-link.is-active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.sidebar-link.is-active .sidebar-link__indicator {
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.12);
+}
+
+.sidebar-link.is-active .sidebar-link__chevron {
+  color: #fff;
+}
+
+.sidebar-warning {
+  border-color: rgba(255, 204, 92, 0.32);
+  background: rgba(255, 204, 92, 0.18);
+  color: #fff1c0;
+}
+
+.language-switcher {
+  border-color: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.language-switcher__links {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.language-switcher__links a {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.language-switcher__links a:hover,
+.language-switcher__links a:focus-visible {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.language-switcher__links a.is-active {
+  background: #fff;
+  color: #19348f;
+  box-shadow: 0 2px 7px rgba(5, 16, 58, 0.24);
 }
